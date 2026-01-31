@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Message" ADD COLUMN     "editedAt" TIMESTAMP(3),
+ADD COLUMN     "isEdited" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "readBy" INTEGER[] DEFAULT ARRAY[]::INTEGER[];

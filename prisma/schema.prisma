@@ -1,0 +1,152 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int      @id @default(autoincrement())
+  employeeId  String   @unique
+  email       String   @unique
+  password    String
+  role        Role     @default(EMPLOYEE)
+  isActive    Boolean  @default(true)
+  firstLogin  Boolean  @default(true)
+  
+  details     EmployeeDetails?
+  salary      SalaryStructure?
+  attendance  Attendance[]
+  leaves      LeaveRequest[]
+  payrolls    Payroll[]
+  messages    Message[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model EmployeeDetails {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+  user        User     @relation(fields: [userId], references: [id])
+  
+  firstName   String
+  lastName    String
+  phone       String?
+  address     String?
+  profilePic  String?
+  jobTitle    String
+  department  String
+  joiningDate DateTime
+}
+
+model SalaryStructure {
+  id                Int    @id @default(autoincrement())
+  userId            Int    @unique
+  user              User   @relation(fields: [userId], references: [id])
+  
+  wage              Float
+  
+  // Computed Components
+  basic             Float
+  hra               Float
+  stdAllowance      Float
+  performanceBonus  Float
+  lta               Float
+  fixedAllowance    Float
+  
+  // Deductions
+  pf                Float
+  profTax           Float
+  
+  netSalary         Float
+}
+
+model Attendance {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  
+  date        DateTime @db.Date // Ensures we query by date easily
+  checkIn     DateTime?
+  checkOut    DateTime?
+  status      AttendanceStatus @default(ABSENT)
+}
+
+model LeaveRequest {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id])
+  
+  type          LeaveType
+  startDate     DateTime
+  endDate       DateTime
+  reason        String
+  status        LeaveStatus @default(PENDING)
+  adminComments String?
+  
+  appliedAt     DateTime @default(now())
+}
+
+model Payroll {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  
+  month       Int
+  year        Int
+  
+  // Snapshot data
+  baseWage    Float
+  totalEarnings Float
+  totalDeductions Float
+  netPay      Float
+  
+  status      PayrollStatus @default(GENERATED)
+  createdAt   DateTime @default(now())
+}
+
+model Message {
+  id        Int       @id @default(autoincrement())
+  content   String
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
+  createdAt DateTime  @default(now())
+  isEdited  Boolean   @default(false)
+  editedAt  DateTime?
+  readBy    Int[]     @default([])
+}
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LEAVE
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LeaveType {
+  SICK
+  PAID
+  UNPAID
+}
+
+enum PayrollStatus {
+  GENERATED
+  PAID
+}
