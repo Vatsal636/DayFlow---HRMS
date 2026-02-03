@@ -2,10 +2,23 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { signToken } from '@/lib/auth'
+import { isAccountLocked, calculateLockoutDuration, checkRateLimit, getClientIP } from '@/lib/security'
+import { createAuditLog, AuditActions, AuditResources } from '@/lib/audit'
 
 export async function POST(request) {
     try {
         const { loginId, password } = await request.json()
+        
+        // Rate limiting - 5 login attempts per minute per IP
+        const clientIP = getClientIP(request)
+        const rateLimit = checkRateLimit(`login-${clientIP}`, 10, 60 * 1000)
+        
+        if (!rateLimit.allowed) {
+            return NextResponse.json(
+                { error: `Too many login attempts. Try again in ${rateLimit.resetIn} seconds` }, 
+                { status: 429 }
+            )
+        }
 
         // LoginID can be email OR employeeId
         const user = await prisma.user.findFirst({
@@ -14,27 +27,136 @@ export async function POST(request) {
                     { email: loginId },
                     { employeeId: loginId }
                 ]
+            },
+            include: {
+                details: true
             }
         })
 
         if (!user) {
-            return NextResponse.json({ error: 'User not found' }, { status: 401 })
-        }
-
-        if (!user.isActive) {
-            return NextResponse.json({ error: 'Account is inactive' }, { status: 403 })
-        }
-
-        const isValid = await bcrypt.compare(password, user.password)
-        if (!isValid) {
+            // Audit log for failed attempt
+            await createAuditLog({
+                userId: null,
+                action: AuditActions.LOGIN_FAILED,
+                resource: AuditResources.AUTHENTICATION,
+                resourceId: null,
+                details: `Failed login attempt for: ${loginId}`,
+                request
+            })
+            
             return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
         }
 
-        // Generate Request
+        if (!user.isActive) {
+            await createAuditLog({
+                userId: user.id,
+                action: AuditActions.LOGIN_FAILED,
+                resource: AuditResources.AUTHENTICATION,
+                resourceId: user.id.toString(),
+                details: 'Login attempt on inactive account',
+                request
+            })
+            
+            return NextResponse.json({ error: 'Account is inactive. Please contact HR' }, { status: 403 })
+        }
+        
+        // Check if account is locked
+        if (isAccountLocked(user)) {
+            const lockExpiry = new Date(user.accountLockedUntil)
+            const minutesRemaining = Math.ceil((lockExpiry - new Date()) / 60000)
+            
+            await createAuditLog({
+                userId: user.id,
+                action: AuditActions.LOGIN_FAILED,
+                resource: AuditResources.AUTHENTICATION,
+                resourceId: user.id.toString(),
+                details: 'Login attempt on locked account',
+                request
+            })
+            
+            return NextResponse.json(
+                { error: `Account is locked. Try again in ${minutesRemaining} minutes` }, 
+                { status: 403 }
+            )
+        }
+
+        const isValid = await bcrypt.compare(password, user.password)
+        
+        if (!isValid) {
+            // Increment failed login attempts
+            const newFailedAttempts = user.failedLoginAttempts + 1
+            const lockoutMinutes = calculateLockoutDuration(newFailedAttempts)
+            
+            const updateData = {
+                failedLoginAttempts: newFailedAttempts
+            }
+            
+            if (lockoutMinutes > 0) {
+                updateData.accountLockedUntil = new Date(Date.now() + lockoutMinutes * 60 * 1000)
+            }
+            
+            await prisma.user.update({
+                where: { id: user.id },
+                data: updateData
+            })
+            
+            await createAuditLog({
+                userId: user.id,
+                action: AuditActions.LOGIN_FAILED,
+                resource: AuditResources.AUTHENTICATION,
+                resourceId: user.id.toString(),
+                details: `Invalid password. Failed attempts: ${newFailedAttempts}`,
+                request
+            })
+            
+            if (lockoutMinutes > 0) {
+                await createAuditLog({
+                    userId: user.id,
+                    action: AuditActions.ACCOUNT_LOCKED,
+                    resource: AuditResources.AUTHENTICATION,
+                    resourceId: user.id.toString(),
+                    details: `Account locked for ${lockoutMinutes} minutes after ${newFailedAttempts} failed attempts`,
+                    request
+                })
+                
+                return NextResponse.json(
+                    { error: `Account locked for ${lockoutMinutes} minutes due to multiple failed attempts` }, 
+                    { status: 403 }
+                )
+            }
+            
+            const remainingAttempts = 5 - newFailedAttempts
+            return NextResponse.json(
+                { error: `Invalid credentials. ${remainingAttempts} attempts remaining before lockout` }, 
+                { status: 401 }
+            )
+        }
+        
+        // Successful login - reset failed attempts and update last login
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                failedLoginAttempts: 0,
+                accountLockedUntil: null,
+                lastLoginAt: new Date()
+            }
+        })
+
+        // Generate JWT
         const token = await signToken({
             id: user.id,
             role: user.role,
             firstLogin: user.firstLogin
+        })
+        
+        // Audit log
+        await createAuditLog({
+            userId: user.id,
+            action: AuditActions.LOGIN_SUCCESS,
+            resource: AuditResources.AUTHENTICATION,
+            resourceId: user.id.toString(),
+            details: `Successful login`,
+            request
         })
 
         const response = NextResponse.json({
@@ -43,7 +165,8 @@ export async function POST(request) {
                 id: user.id,
                 role: user.role,
                 firstLogin: user.firstLogin,
-                name: user.details?.firstName || 'User' // We might need to fetch details if not eager loaded (Prisma doesn't auto-fetch relations unless included)
+                emailVerified: user.emailVerified,
+                name: user.details?.firstName || 'User'
             }
         })
 
