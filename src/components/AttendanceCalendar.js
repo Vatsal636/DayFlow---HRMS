@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Clock } from "lucide-react"
 export default function AttendanceCalendar({
     currentDate,
     attendanceData = [],
+    leavesData = [],
     joiningDate,
     onPrevMonth,
     onNextMonth,
@@ -54,6 +55,24 @@ export default function AttendanceCalendar({
         const month = String(date.getMonth() + 1).padStart(2, '0')
         const day = String(date.getDate()).padStart(2, '0')
         const dateStr = `${year}-${month}-${day}`
+
+        // Check if date falls within an approved leave
+        const isOnLeave = leavesData.some(leave => {
+            const startDate = new Date(leave.startDate)
+            const endDate = new Date(leave.endDate)
+            
+            // Set time to midnight for accurate date comparison
+            startDate.setHours(0, 0, 0, 0)
+            endDate.setHours(23, 59, 59, 999)
+            const checkDate = new Date(date)
+            checkDate.setHours(0, 0, 0, 0)
+            
+            return checkDate >= startDate && checkDate <= endDate
+        })
+
+        if (isOnLeave) {
+            return { color: 'bg-purple-100 text-purple-700', status: 'Leave', record: null }
+        }
 
         // Find matching attendance record
         const record = attendanceData.find(a => {

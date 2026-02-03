@@ -7,6 +7,7 @@ import AttendanceCalendar from "@/components/AttendanceCalendar"
 export default function AttendancePage() {
     const [currentDate, setCurrentDate] = useState(new Date())
     const [attendanceData, setAttendanceData] = useState([])
+    const [leavesData, setLeavesData] = useState([])
     const [joiningDate, setJoiningDate] = useState(null)
     const [loading, setLoading] = useState(true)
 
@@ -20,6 +21,7 @@ export default function AttendancePage() {
             if (res.ok) {
                 const data = await res.json()
                 setAttendanceData(data.attendance || [])
+                setLeavesData(data.leaves || [])
                 setJoiningDate(data.joiningDate)
             }
         } catch (e) {
@@ -51,6 +53,7 @@ export default function AttendancePage() {
             <AttendanceCalendar
                 currentDate={currentDate}
                 attendanceData={attendanceData}
+                leavesData={leavesData}
                 joiningDate={joiningDate}
                 onPrevMonth={handlePrevMonth}
                 onNextMonth={handleNextMonth}
