@@ -176,7 +176,7 @@ export default function AttendanceCalendar({
             </div>
 
             {/* Legend */}
-            <div className="flex gap-6 mt-4 justify-center">
+            <div className="flex gap-6 mt-4 justify-center flex-wrap">
                 <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded bg-green-100 border border-green-200"></div>
                     <span className="text-sm text-slate-600">On Time</span>
@@ -184,6 +184,10 @@ export default function AttendanceCalendar({
                 <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded bg-orange-100 border border-orange-200"></div>
                     <span className="text-sm text-slate-600">Late (Arrived after 9:30 AM)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-purple-100 border border-purple-200"></div>
+                    <span className="text-sm text-slate-600">On Leave</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded bg-red-50 border border-red-200"></div>
