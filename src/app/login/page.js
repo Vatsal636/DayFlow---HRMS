@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, ArrowRight, UserCircle, Lock, AlertCircle } from "lucide-react"
+import Link from "next/link"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -77,7 +78,15 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 ml-1">Password</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-slate-700 ml-1">Password</label>
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Forgot Password?
+                </Link>
+              </div>
               <div className="relative group">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                 <input
