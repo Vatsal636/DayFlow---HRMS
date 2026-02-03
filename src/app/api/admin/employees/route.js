@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { sendWelcomeEmail } from '@/lib/email'
+import { generateSecureToken, hashToken } from '@/lib/security'
+import { createAuditLog, AuditActions, AuditResources } from '@/lib/audit'
+import { verifyToken } from '@/lib/auth'
 
 // Helper to generate Employee ID
 async function generateEmployeeId(firstName, lastName, joiningDate) {
@@ -65,6 +68,10 @@ export async function POST(request) {
     try {
         const body = await request.json()
         const { firstName, lastName, email, jobTitle, department, joiningDate, phone, address } = body
+        
+        // Get admin user for audit log
+        const token = request.cookies.get('token')?.value
+        const payload = token ? await verifyToken(token) : null
 
         // 1. Generate Employee ID
         const employeeId = await generateEmployeeId(firstName, lastName, joiningDate)
@@ -72,8 +79,13 @@ export async function POST(request) {
         // 2. Generate Random Password (or fixed for initial setup, per requirement "generated and sent")
         const rawPassword = Math.random().toString(36).slice(-8) // 8 char random string
         const hashedPassword = await bcrypt.hash(rawPassword, 10)
+        
+        // 3. Generate email verification token
+        const verificationToken = generateSecureToken()
+        const hashedVerificationToken = hashToken(verificationToken)
+        const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
-        // 3. Create User & Details Transaction
+        // 4. Create User & Details Transaction
         const verifyEmail = await prisma.user.findUnique({ where: { email } })
         if (verifyEmail) {
             return NextResponse.json({ error: 'Email already exists' }, { status: 400 })
@@ -87,6 +99,8 @@ export async function POST(request) {
                     password: hashedPassword,
                     role: 'EMPLOYEE',
                     firstLogin: true, // Force password change
+                    emailVerificationToken: hashedVerificationToken,
+                    emailVerificationExpiry: verificationExpiry,
                     details: {
                         create: {
                             firstName,
@@ -105,13 +119,23 @@ export async function POST(request) {
             return user
         })
 
-        // 4. Send Welcome Email
+        // 5. Send Welcome Email with verification link
         try {
-            await sendWelcomeEmail(email, `${firstName} ${lastName}`, employeeId, rawPassword)
+            await sendWelcomeEmail(email, `${firstName} ${lastName}`, employeeId, rawPassword, verificationToken)
         } catch (emailError) {
             console.error("Failed to send welcome email:", emailError)
             // We don't fail the request if email fails, but we log it.
         }
+        
+        // 6. Audit log
+        await createAuditLog({
+            userId: payload?.id,
+            action: AuditActions.EMPLOYEE_CREATED,
+            resource: AuditResources.EMPLOYEE,
+            resourceId: newUser.id.toString(),
+            details: `Created employee: ${firstName} ${lastName} (${employeeId})`,
+            request
+        })
 
         return NextResponse.json({
             success: true,
