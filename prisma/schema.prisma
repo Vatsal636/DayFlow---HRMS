@@ -19,12 +19,32 @@ model User {
   isActive    Boolean  @default(true)
   firstLogin  Boolean  @default(true)
   
+  // Email Verification
+  emailVerified       Boolean   @default(false)
+  emailVerificationToken String?
+  emailVerificationExpiry DateTime?
+  
+  // Password Reset
+  passwordResetToken   String?
+  passwordResetExpiry  DateTime?
+  
+  // Two-Factor Authentication
+  twoFactorEnabled     Boolean   @default(false)
+  twoFactorSecret      String?
+  
+  // Security & Session Management
+  lastLoginAt          DateTime?
+  failedLoginAttempts  Int       @default(0)
+  accountLockedUntil   DateTime?
+  
   details     EmployeeDetails?
   salary      SalaryStructure?
   attendance  Attendance[]
   leaves      LeaveRequest[]
   payrolls    Payroll[]
   messages    Message[]
+  sessions    Session[]
+  auditLogs   AuditLog[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -120,6 +140,30 @@ model Message {
   isEdited  Boolean   @default(false)
   editedAt  DateTime?
   readBy    Int[]     @default([])
+}
+
+model Session {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  token       String   @unique
+  ipAddress   String?
+  userAgent   String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int?
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String
+  resource    String
+  resourceId  String?
+  details     String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
 }
 
 enum Role {
