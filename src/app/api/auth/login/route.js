@@ -60,6 +60,24 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Account is inactive. Please contact HR' }, { status: 403 })
         }
         
+        // Check if email is verified
+        if (!user.emailVerified) {
+            await createAuditLog({
+                userId: user.id,
+                action: AuditActions.LOGIN_FAILED,
+                resource: AuditResources.AUTHENTICATION,
+                resourceId: user.id.toString(),
+                details: 'Login attempt with unverified email',
+                request
+            })
+            
+            return NextResponse.json({ 
+                error: 'Email not verified', 
+                code: 'EMAIL_NOT_VERIFIED',
+                email: user.email 
+            }, { status: 403 })
+        }
+        
         // Check if account is locked
         if (isAccountLocked(user)) {
             const lockExpiry = new Date(user.accountLockedUntil)

@@ -16,6 +16,7 @@ async function main() {
             role: 'ADMIN',
             isActive: true,
             firstLogin: false,
+            emailVerified: true,
             details: {
                 create: {
                     firstName: 'System',

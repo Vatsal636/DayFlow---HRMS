@@ -9,6 +9,10 @@ export default function LoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [showResendVerification, setShowResendVerification] = useState(false)
+  const [resendEmail, setResendEmail] = useState("")
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMessage, setResendMessage] = useState("")
   const [formData, setFormData] = useState({
     loginId: "",
     password: ""
@@ -18,6 +22,7 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError("")
+    setShowResendVerification(false)
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -29,7 +34,15 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        throw new Error(data.error || "Login failed")
+        // Check if email verification is needed
+        if (data.code === 'EMAIL_NOT_VERIFIED') {
+          setError('Your email address is not verified. Please check your email for the verification link.')
+          setShowResendVerification(true)
+          setResendEmail(data.email)
+        } else {
+          setError(data.error || "Login failed")
+        }
+        return
       }
 
       // Successful login
@@ -42,6 +55,27 @@ export default function LoginPage() {
       setError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    setResendLoading(true)
+    setResendMessage("")
+    
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resendEmail })
+      })
+
+      const data = await res.json()
+      setResendMessage(data.message || 'Verification email sent!')
+      
+    } catch (err) {
+      setResendMessage('Failed to send email. Please try again.')
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -114,14 +148,33 @@ export default function LoginPage() {
                 </>
               )}
             </button>
+            
+            {showResendVerification && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <p className="text-sm text-blue-900 mb-3">
+                  Didn't receive the verification email?
+                </p>
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={resendLoading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 rounded-lg transition disabled:opacity-50"
+                >
+                  {resendLoading ? 'Sending...' : 'Resend Verification Email'}
+                </button>
+                {resendMessage && (
+                  <p className="text-xs text-blue-800 mt-2 text-center">{resendMessage}</p>
+                )}
+              </div>
+            )}
           </form>
         </div>
       </div>
 
       {error && (
-        <div className="fixed bottom-4 right-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm flex items-center gap-2 shadow-lg animate-slideUp z-50">
-          <AlertCircle className="w-4 h-4" />
-          {error}
+        <div className="fixed bottom-4 right-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm flex items-center gap-2 shadow-lg animate-slideUp z-50 max-w-md">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{error}</span>
         </div>
       )}
     </div>
