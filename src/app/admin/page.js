@@ -2,14 +2,18 @@
 
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { Plus, Search, Mail, Phone, MoreHorizontal, Users } from "lucide-react"
+import { Plus, Search, Mail, Phone, MoreHorizontal, Users, AlertTriangle, ShieldAlert, Send } from "lucide-react"
 import AddEmployeeModal from "@/components/AddEmployeeModal"
+import Link from "next/link"
 
 export default function AdminDashboard() {
     const [employees, setEmployees] = useState([])
     const [attendanceList, setAttendanceList] = useState([])
     const [loading, setLoading] = useState(true)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+    const [pendingVerification, setPendingVerification] = useState(0)
+    const [csrfToken, setCsrfToken] = useState(null)
+    const [resendingFor, setResendingFor] = useState(null)
 
     const [stats, setStats] = useState([
         { label: 'Total Employees', value: '-', change: '...', icon: Users },
@@ -54,6 +58,9 @@ export default function AdminDashboard() {
     }
 
     useEffect(() => {
+        const token = localStorage.getItem('csrfToken')
+        if (token) setCsrfToken(token)
+        
         const fetchStats = async () => {
             try {
                 const res = await fetch('/api/admin/stats')
@@ -61,6 +68,7 @@ export default function AdminDashboard() {
                     const data = await res.json()
                     // Map string icons to components if dynamic, or just map values
                     setStats(prev => prev.map((s, i) => ({ ...s, ...data.stats[i] })))
+                    setPendingVerification(data.pendingVerification || 0)
                 }
             } catch (e) {
                 console.error(e)
@@ -143,6 +151,35 @@ export default function AdminDashboard() {
                 ))}
             </div>
 
+            {/* Pending Verification Alert */}
+            {pendingVerification > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-amber-50 border border-amber-200 rounded-2xl p-5"
+                >
+                    <div className="flex items-start gap-4">
+                        <div className="p-2 bg-amber-100 rounded-lg">
+                            <ShieldAlert className="w-5 h-5 text-amber-600" />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-semibold text-amber-900">Pending Email Verification</h3>
+                            <p className="text-sm text-amber-700 mt-1">
+                                <span className="font-bold">{pendingVerification}</span> employee{pendingVerification !== 1 ? 's have' : ' has'} not verified their email yet. They won't be able to log in until verified.
+                            </p>
+                            <div className="flex items-center gap-3 mt-3">
+                                <Link
+                                    href="/admin/employees?filter=unverified"
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                >
+                                    View Unverified Employees
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+            )}
+
             {/* Main Content Area: Today's Attendance Table */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center">
@@ -152,7 +189,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex gap-2">
 
-                        <button className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">View All History</button>
+                        <Link href="/admin/attendance" className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">View All History</Link>
                     </div>
                 </div>
 

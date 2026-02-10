@@ -46,8 +46,37 @@ export async function GET(request) {
             }
         })
 
+        // Fetch approved leaves that overlap with this month
+        const leaves = await prisma.leaveRequest.findMany({
+            where: {
+                userId: userId,
+                status: 'APPROVED',
+                OR: [
+                    {
+                        startDate: {
+                            gte: startDate,
+                            lte: endDate
+                        }
+                    },
+                    {
+                        endDate: {
+                            gte: startDate,
+                            lte: endDate
+                        }
+                    },
+                    {
+                        AND: [
+                            { startDate: { lte: startDate } },
+                            { endDate: { gte: endDate } }
+                        ]
+                    }
+                ]
+            }
+        })
+
         return NextResponse.json({
             attendance,
+            leaves,
             joiningDate: targetUser?.details?.joiningDate || new Date()
         })
 

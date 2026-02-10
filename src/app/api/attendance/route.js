@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import { createAuditLog, AuditActions, AuditResources } from '@/lib/audit'
 
 // GET: Fetch today's status
 export async function GET(request) {
@@ -67,6 +68,16 @@ export async function POST(request) {
                 status: 'PRESENT'
             }
         })
+        
+        // Audit log
+        await createAuditLog({
+            userId: payload.id,
+            action: AuditActions.ATTENDANCE_CHECKIN,
+            resource: AuditResources.ATTENDANCE,
+            resourceId: attendance.id.toString(),
+            details: `Checked in at ${checkInTime.toLocaleTimeString()}`,
+            request
+        })
 
         return NextResponse.json({ success: true, attendance })
 
@@ -108,6 +119,16 @@ export async function PUT(request) {
                 checkOut: checkOutTime,
                 // Logic for HALF_DAY can be added later here based on hours
             }
+        })
+        
+        // Audit log
+        await createAuditLog({
+            userId: payload.id,
+            action: AuditActions.ATTENDANCE_CHECKOUT,
+            resource: AuditResources.ATTENDANCE,
+            resourceId: attendance.id.toString(),
+            details: `Checked out at ${checkOutTime.toLocaleTimeString()}`,
+            request
         })
 
         return NextResponse.json({ success: true, attendance })

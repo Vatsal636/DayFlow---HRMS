@@ -7,6 +7,7 @@ import { X, Loader2 } from "lucide-react"
 export default function EditEmployeeModal({ isOpen, onClose, employee, onRefresh }) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
+    const [csrfToken, setCsrfToken] = useState(null)
 
     const [formData, setFormData] = useState({
         firstName: "",
@@ -16,6 +17,11 @@ export default function EditEmployeeModal({ isOpen, onClose, employee, onRefresh
         phone: "",
         address: ""
     })
+
+    useEffect(() => {
+        const token = localStorage.getItem('csrfToken')
+        if (token) setCsrfToken(token)
+    }, [])
 
     useEffect(() => {
         if (employee) {
@@ -44,7 +50,10 @@ export default function EditEmployeeModal({ isOpen, onClose, employee, onRefresh
         try {
             const res = await fetch(`/api/admin/employees/${employee.id}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    ...(csrfToken && { 'x-csrf-token': csrfToken })
+                },
                 body: JSON.stringify(formData)
             })
 

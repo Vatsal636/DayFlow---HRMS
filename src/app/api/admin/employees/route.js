@@ -5,6 +5,7 @@ import { sendWelcomeEmail } from '@/lib/email'
 import { generateSecureToken, hashToken } from '@/lib/security'
 import { createAuditLog, AuditActions, AuditResources } from '@/lib/audit'
 import { verifyToken } from '@/lib/auth'
+import { notifyWelcome } from '@/lib/notifications'
 
 // Helper to generate Employee ID
 async function generateEmployeeId(firstName, lastName, joiningDate) {
@@ -54,7 +55,9 @@ export async function GET(request) {
             employeeId: u.employeeId,
             department: u.details?.department || 'Unassigned',
             avatar: u.details?.profilePic,
-            email: u.email
+            email: u.email,
+            emailVerified: u.emailVerified,
+            isActive: u.isActive
         }))
 
         return NextResponse.json({ employees })
@@ -136,6 +139,13 @@ export async function POST(request) {
             details: `Created employee: ${firstName} ${lastName} (${employeeId})`,
             request
         })
+        
+        // 7. Send welcome notification (in-app)
+        try {
+            await notifyWelcome(newUser.id, firstName)
+        } catch (notifyError) {
+            console.error("Failed to send welcome notification:", notifyError)
+        }
 
         return NextResponse.json({
             success: true,

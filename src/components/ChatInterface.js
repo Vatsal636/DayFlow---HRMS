@@ -12,10 +12,13 @@ export default function ChatInterface({ currentUserRole }) {
     const [editContent, setEditContent] = useState("")
     const [typingUsers, setTypingUsers] = useState([])
     const [currentUserId, setCurrentUserId] = useState(null)
+    const [csrfToken, setCsrfToken] = useState(null)
     const scrollRef = useRef(null)
     const typingTimeoutRef = useRef(null)
 
     useEffect(() => {
+        const token = localStorage.getItem('csrfToken')
+        if (token) setCsrfToken(token)
         fetchMessages()
         const messageInterval = setInterval(fetchMessages, 3000)
         const typingInterval = setInterval(fetchTypingUsers, 2000)
@@ -44,7 +47,10 @@ export default function ChatInterface({ currentUserRole }) {
             // Mark all messages as read
             const res = await fetch('/api/chat/read', {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' }
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(csrfToken && { 'x-csrf-token': csrfToken })
+                }
             })
             const data = await res.json()
             if (data.count > 0) {
@@ -85,7 +91,10 @@ export default function ChatInterface({ currentUserRole }) {
         try {
             await fetch('/api/chat/typing', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(csrfToken && { 'x-csrf-token': csrfToken })
+                },
                 body: JSON.stringify({ isTyping })
             })
         } catch (e) {
@@ -120,7 +129,10 @@ export default function ChatInterface({ currentUserRole }) {
         try {
             const res = await fetch('/api/chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(csrfToken && { 'x-csrf-token': csrfToken })
+                },
                 body: JSON.stringify({ content: newMessage })
             })
             if (res.ok) {
@@ -150,7 +162,10 @@ export default function ChatInterface({ currentUserRole }) {
         try {
             const res = await fetch('/api/chat', {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(csrfToken && { 'x-csrf-token': csrfToken })
+                },
                 body: JSON.stringify({ messageId, content: editContent })
             })
             if (res.ok) {
@@ -168,7 +183,10 @@ export default function ChatInterface({ currentUserRole }) {
         
         try {
             const res = await fetch(`/api/chat?id=${messageId}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: {
+                    ...(csrfToken && { 'x-csrf-token': csrfToken })
+                }
             })
             if (res.ok) {
                 fetchMessages()

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import { createAuditLog, AuditActions, AuditResources } from '@/lib/audit'
 
 export async function GET(request) {
     try {
@@ -62,6 +63,17 @@ export async function PUT(request) {
                 joiningDate: new Date()
             },
             update: dataToUpdate
+        })
+
+        // Audit log
+        const updatedFields = Object.keys(dataToUpdate).join(', ')
+        await createAuditLog({
+            userId: payload.id,
+            action: AuditActions.PROFILE_UPDATED,
+            resource: AuditResources.USER,
+            resourceId: payload.id.toString(),
+            details: `Updated profile fields: ${updatedFields}`,
+            request
         })
 
         return NextResponse.json({ success: true, details })

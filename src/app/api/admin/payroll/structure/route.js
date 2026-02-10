@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import { createAuditLog, AuditActions, AuditResources } from '@/lib/audit'
 
 export async function POST(request) {
     try {
@@ -74,6 +75,30 @@ export async function POST(request) {
                 profTax,
                 netSalary
             }
+        })
+
+        // Get employee name for audit log
+        const employee = await prisma.user.findUnique({
+            where: { id: parseInt(userId) },
+            select: { 
+                employeeDetails: { 
+                    select: { firstName: true, lastName: true } 
+                } 
+            }
+        })
+        
+        const employeeName = employee?.employeeDetails 
+            ? `${employee.employeeDetails.firstName} ${employee.employeeDetails.lastName}`
+            : `User ${userId}`
+
+        // Audit log
+        await createAuditLog({
+            userId: payload.id,
+            action: AuditActions.SALARY_STRUCTURE_UPDATED,
+            resource: AuditResources.PAYROLL,
+            resourceId: userId.toString(),
+            details: `Updated salary structure for ${employeeName} - Wage: ₹${wageVal}, Net Salary: ₹${netSalary.toFixed(2)}`,
+            request
         })
 
         return NextResponse.json({ success: true, salaryStructure })

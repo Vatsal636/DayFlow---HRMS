@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma'
 export async function GET(request) {
     try {
         // Parallelize queries for speed
-        const [employeeCount, activeNow, pendingLeaves] = await Promise.all([
+        const [employeeCount, activeNow, pendingLeaves, pendingVerification] = await Promise.all([
             prisma.user.count({ where: { role: 'EMPLOYEE', isActive: true } }),
             prisma.attendance.count({
                 where: {
@@ -12,7 +12,8 @@ export async function GET(request) {
                     status: 'PRESENT'
                 }
             }),
-            prisma.leaveRequest.count({ where: { status: 'PENDING' } })
+            prisma.leaveRequest.count({ where: { status: 'PENDING' } }),
+            prisma.user.count({ where: { role: 'EMPLOYEE', emailVerified: false } })
         ])
 
         return NextResponse.json({
@@ -21,7 +22,8 @@ export async function GET(request) {
                 { label: 'Present Today', value: activeNow, change: `${Math.round((activeNow / employeeCount) * 100 || 0)}% attendance`, icon: 'UserCheck' },
                 { label: 'Pending Leaves', value: pendingLeaves, change: 'Action required', icon: 'Clock' },
                 { label: 'Payroll Status', value: 'Pending', change: 'Due in 5 days', icon: 'Banknote' },
-            ]
+            ],
+            pendingVerification
         })
     } catch (error) {
         console.error('Stats error:', error)

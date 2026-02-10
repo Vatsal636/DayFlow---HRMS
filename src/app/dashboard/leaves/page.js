@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { Calendar, Plus, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react"
+import { useToast } from "@/components/Toast"
 
 export default function LeavePage() {
+    const toast = useToast()
     const [leaves, setLeaves] = useState([])
     const [showForm, setShowForm] = useState(false)
     const [formData, setFormData] = useState({
@@ -13,8 +15,11 @@ export default function LeavePage() {
         reason: ''
     })
     const [submitting, setSubmitting] = useState(false)
+    const [csrfToken, setCsrfToken] = useState(null)
 
     useEffect(() => {
+        const token = localStorage.getItem('csrfToken')
+        if (token) setCsrfToken(token)
         fetchLeaves()
     }, [])
 
@@ -36,7 +41,10 @@ export default function LeavePage() {
         try {
             const res = await fetch('/api/leaves', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(csrfToken && { 'x-csrf-token': csrfToken })
+                },
                 body: JSON.stringify(formData)
             })
             if (res.ok) {
@@ -44,11 +52,11 @@ export default function LeavePage() {
                 setFormData({ type: 'SICK', startDate: '', endDate: '', reason: '' })
                 fetchLeaves() // Refresh list
             } else {
-                alert("Failed to apply for leave")
+                toast.error("Failed to apply for leave")
             }
         } catch (e) {
             console.error(e)
-            alert("Error applying for leave")
+            toast.error("Error applying for leave")
         } finally {
             setSubmitting(false)
         }

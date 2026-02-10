@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { verifyToken } from '@/lib/auth'
+import { createAuditLog, AuditActions, AuditResources } from '@/lib/audit'
 
 export async function PUT(request, { params }) {
     try {
         const { id } = await params
         const body = await request.json()
         const { firstName, lastName, phone, address, jobTitle, department } = body
+        
+        const token = request.cookies.get('token')?.value
+        const payload = token ? await verifyToken(token) : null
 
         // Update details (and User if needed, though mostly details here)
         const updatedUser = await prisma.user.update({
@@ -26,6 +31,16 @@ export async function PUT(request, { params }) {
                 details: true
             }
         })
+        
+        // Audit log
+        await createAuditLog({
+            userId: payload?.id,
+            action: AuditActions.EMPLOYEE_UPDATED,
+            resource: AuditResources.EMPLOYEE,
+            resourceId: id,
+            details: `Updated employee: ${firstName} ${lastName}`,
+            request
+        })
 
         return NextResponse.json({ success: true, user: updatedUser })
     } catch (error) {
@@ -38,6 +53,19 @@ export async function DELETE(request, { params }) {
     try {
         const { id } = await params
         const userId = parseInt(id)
+        
+        const token = request.cookies.get('token')?.value
+        const payload = token ? await verifyToken(token) : null
+        
+        // Get employee name before deletion
+        const employee = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { details: true }
+        })
+        
+        const employeeName = employee?.details 
+            ? `${employee.details.firstName} ${employee.details.lastName}`
+            : employee?.employeeId || 'Unknown'
 
         // Delete all related records first (in correct order due to foreign key constraints)
         // Delete in a transaction to ensure all-or-nothing
@@ -61,8 +89,22 @@ export async function DELETE(request, { params }) {
             // Use deleteMany instead of delete to handle missing records gracefully
             await tx.employeeDetails.deleteMany({ where: { userId } })
             
-            // 7. Finally delete user
+            // 7. Delete sessions and audit logs
+            await tx.session.deleteMany({ where: { userId } })
+            await tx.auditLog.deleteMany({ where: { userId } })
+            
+            // 8. Finally delete user
             await tx.user.delete({ where: { id: userId } })
+        })
+        
+        // Audit log (after deletion completes)
+        await createAuditLog({
+            userId: payload?.id,
+            action: AuditActions.EMPLOYEE_DELETED,
+            resource: AuditResources.EMPLOYEE,
+            resourceId: id,
+            details: `Deleted employee: ${employeeName} (ID: ${userId})`,
+            request
         })
 
         return NextResponse.json({ success: true, message: 'Employee deleted successfully' })

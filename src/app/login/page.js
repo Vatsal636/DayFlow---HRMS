@@ -45,6 +45,11 @@ export default function LoginPage() {
         return
       }
 
+      // Store CSRF token for subsequent requests
+      if (data.csrfToken) {
+        localStorage.setItem('csrfToken', data.csrfToken)
+      }
+
       // Successful login
       if (data.user.role === "ADMIN") {
         router.push("/admin")

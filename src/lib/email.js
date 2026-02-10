@@ -201,3 +201,28 @@ export async function sendTwoFactorCodeEmail(to, name, code) {
         return false
     }
 }
+
+// Generic email sending function for notifications and other uses
+export async function sendEmail({ to, subject, html, text }) {
+    const mailOptions = {
+        from: FROM_EMAIL,
+        to,
+        subject,
+        text: text || '', // Plain text fallback
+        html: html || text || ''
+    }
+
+    try {
+        const info = await transporter.sendMail(mailOptions)
+        
+        if (!isEmailConfigured) {
+            console.log("\n📧 [MOCK] Email to", to, "with subject:", subject, "\n")
+        } else {
+            console.log("✅ Email sent to:", to, "| Subject:", subject)
+        }
+        return true
+    } catch (error) {
+        console.error("❌ Failed to send email:", error.message)
+        return false
+    }
+}

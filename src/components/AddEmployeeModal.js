@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Loader2, Upload } from "lucide-react"
 
@@ -8,6 +8,12 @@ export default function AddEmployeeModal({ isOpen, onClose, onRefresh }) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
     const [success, setSuccess] = useState(null)
+    const [csrfToken, setCsrfToken] = useState(null)
+
+    useEffect(() => {
+        const token = localStorage.getItem('csrfToken')
+        if (token) setCsrfToken(token)
+    }, [])
 
     const [formData, setFormData] = useState({
         firstName: "",
@@ -49,7 +55,10 @@ export default function AddEmployeeModal({ isOpen, onClose, onRefresh }) {
         try {
             const res = await fetch("/api/admin/employees", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    ...(csrfToken && { 'x-csrf-token': csrfToken })
+                },
                 body: JSON.stringify(formData)
             })
 

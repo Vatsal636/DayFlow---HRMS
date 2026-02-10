@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { verifyToken } from '@/lib/auth'
+import { createAuditLog, AuditActions, AuditResources } from '@/lib/audit'
 
 export async function POST(request) {
     try {
@@ -24,6 +25,16 @@ export async function POST(request) {
                 password: hashedPassword,
                 firstLogin: false
             }
+        })
+
+        // Audit log
+        await createAuditLog({
+            userId: payload.id,
+            action: AuditActions.PASSWORD_CHANGED,
+            resource: AuditResources.USER,
+            resourceId: payload.id.toString(),
+            details: 'User changed their password',
+            request
         })
 
         return NextResponse.json({ success: true, message: 'Password updated' })

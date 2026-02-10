@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import { createAuditLog, AuditActions, AuditResources } from '@/lib/audit'
+import { notifyPayrollGenerated } from '@/lib/notifications'
 
 export async function POST(request) {
     try {
@@ -150,6 +152,13 @@ export async function POST(request) {
                     status: 'GENERATED'
                 }
             })
+            
+            // Send notification to employee
+            const monthName = new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+            await notifyPayrollGenerated(emp.id, {
+                month: monthName,
+                netPay: netPay
+            })
 
             payrolls.push({
                 ...newPayroll,
@@ -159,6 +168,16 @@ export async function POST(request) {
                 daysInMonth
             })
         }
+        
+        // Audit log
+        await createAuditLog({
+            userId: payload.id,
+            action: AuditActions.PAYROLL_PROCESSED,
+            resource: AuditResources.PAYROLL,
+            resourceId: `${year}-${month}`,
+            details: `Processed payroll for ${payrolls.length} employees for ${new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
+            request
+        })
 
         return NextResponse.json({ 
             success: true, 

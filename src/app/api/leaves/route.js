@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import { createAuditLog, AuditActions, AuditResources } from '@/lib/audit'
 
 export async function GET(request) {
     try {
@@ -49,6 +50,16 @@ export async function POST(request) {
                 endDate: end,
                 reason
             }
+        })
+        
+        // Audit log
+        await createAuditLog({
+            userId: payload.id,
+            action: AuditActions.LEAVE_APPLIED,
+            resource: AuditResources.LEAVE,
+            resourceId: leave.id.toString(),
+            details: `Applied for ${type} leave from ${start.toLocaleDateString()} to ${end.toLocaleDateString()}`,
+            request
         })
 
         return NextResponse.json({ success: true, leave })

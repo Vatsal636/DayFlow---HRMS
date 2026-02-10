@@ -45,6 +45,8 @@ model User {
   messages    Message[]
   sessions    Session[]
   auditLogs   AuditLog[]
+  notifications Notification[]
+  notificationPreference NotificationPreference?
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -164,6 +166,53 @@ model AuditLog {
   ipAddress   String?
   userAgent   String?
   createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  
+  type        NotificationType
+  title       String
+  message     String
+  link        String?           // Optional link to navigate to
+  isRead      Boolean  @default(false)
+  emailSent   Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  readAt      DateTime?
+}
+
+model NotificationPreference {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+  user        User     @relation(fields: [userId], references: [id])
+  
+  // Email preferences
+  emailLeaveUpdates     Boolean @default(true)
+  emailPayrollGenerated Boolean @default(true)
+  emailAnnouncements    Boolean @default(true)
+  emailAttendanceAlerts Boolean @default(false)
+  
+  // In-app preferences
+  inAppLeaveUpdates     Boolean @default(true)
+  inAppPayrollGenerated Boolean @default(true)
+  inAppAnnouncements    Boolean @default(true)
+  inAppAttendanceAlerts Boolean @default(true)
+  
+  updatedAt   DateTime @updatedAt
+}
+
+enum NotificationType {
+  LEAVE_APPROVED
+  LEAVE_REJECTED
+  PAYROLL_GENERATED
+  ANNOUNCEMENT
+  ATTENDANCE_REMINDER
+  WELCOME
+  PASSWORD_CHANGED
+  PROFILE_UPDATED
 }
 
 enum Role {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
-import { signToken } from '@/lib/auth'
+import { signToken, generateCSRFToken } from '@/lib/auth'
 import { isAccountLocked, calculateLockoutDuration, checkRateLimit, getClientIP } from '@/lib/security'
 import { createAuditLog, AuditActions, AuditResources } from '@/lib/audit'
 
@@ -167,6 +167,9 @@ export async function POST(request) {
             firstLogin: user.firstLogin
         })
         
+        // Generate CSRF token
+        const csrfToken = generateCSRFToken(user.id.toString())
+        
         // Audit log
         await createAuditLog({
             userId: user.id,
@@ -179,6 +182,7 @@ export async function POST(request) {
 
         const response = NextResponse.json({
             success: true,
+            csrfToken, // Include CSRF token in response
             user: {
                 id: user.id,
                 role: user.role,
@@ -192,6 +196,15 @@ export async function POST(request) {
         response.cookies.set('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
+            maxAge: 60 * 60 * 24, // 1 day
+            path: '/',
+        })
+
+        // Set CSRF token as a cookie (double-submit pattern)
+        response.cookies.set('csrf-token', csrfToken, {
+            httpOnly: false, // Must be readable by JS
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
             maxAge: 60 * 60 * 24, // 1 day
             path: '/',
         })

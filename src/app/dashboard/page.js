@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Clock, Calendar, ArrowRight, Sun, Trophy, Timer, AlertCircle, CheckCircle2 } from "lucide-react"
+import { useToast } from "@/components/Toast"
 
 function formatTime(ms) {
     if (ms < 0) ms = 0
@@ -13,6 +14,7 @@ function formatTime(ms) {
 }
 
 export default function EmployeeDashboard() {
+    const toast = useToast()
     const [date, setDate] = useState(new Date())
     const [attendance, setAttendance] = useState({
         checkedIn: false,
@@ -29,6 +31,7 @@ export default function EmployeeDashboard() {
     const [leaderboard, setLeaderboard] = useState([])
     const [elapsed, setElapsed] = useState(0)
     const [isLoading, setIsLoading] = useState(true)
+    const [csrfToken, setCsrfToken] = useState(null)
 
     // Get greeting based on time
     const getGreeting = () => {
@@ -40,6 +43,12 @@ export default function EmployeeDashboard() {
     }
 
     const greeting = getGreeting()
+
+    // Load CSRF token
+    useEffect(() => {
+        const token = localStorage.getItem('csrfToken')
+        if (token) setCsrfToken(token)
+    }, [])
 
     // Clock
     useEffect(() => {
@@ -92,7 +101,13 @@ export default function EmployeeDashboard() {
 
     const handleCheckIn = async () => {
         try {
-            const res = await fetch('/api/attendance', { method: 'POST' })
+            const res = await fetch('/api/attendance', { 
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(csrfToken && { 'x-csrf-token': csrfToken })
+                }
+            })
             if (res.ok) {
                 const data = await res.json()
                 setAttendance({
@@ -102,13 +117,19 @@ export default function EmployeeDashboard() {
                 })
             }
         } catch (error) {
-            alert('Check in failed')
+            toast.error('Check in failed')
         }
     }
 
     const handleCheckOut = async () => {
         try {
-            const res = await fetch('/api/attendance', { method: 'PUT' })
+            const res = await fetch('/api/attendance', { 
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(csrfToken && { 'x-csrf-token': csrfToken })
+                }
+            })
             if (res.ok) {
                 const data = await res.json()
                 setAttendance(prev => ({
@@ -118,7 +139,7 @@ export default function EmployeeDashboard() {
                 }))
             }
         } catch (error) {
-            alert('Check out failed')
+            toast.error('Check out failed')
         }
     }
 

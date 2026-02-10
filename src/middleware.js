@@ -3,10 +3,31 @@ import { verifyToken } from './lib/auth'
 
 const protectedRoutes = ['/dashboard', '/admin', '/profile']
 const adminRoutes = ['/admin', '/api/admin']
+const csrfExemptRoutes = ['/api/auth/login', '/api/auth/register', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/auth/verify-email', '/api/auth/resend-verification', '/api/auth/setup', '/api/auth/update-password', '/api/auth/logout', '/api/seed']
 
 export async function middleware(request) {
     const path = request.nextUrl.pathname
+    const method = request.method
     const isProtected = protectedRoutes.some(route => path.startsWith(route))
+    
+    // CSRF Protection for state-changing API requests (Double-Submit Cookie Pattern)
+    const isApiRoute = path.startsWith('/api')
+    const isStateChanging = ['POST', 'PUT', 'DELETE'].includes(method)
+    const isCsrfExempt = csrfExemptRoutes.some(route => path.startsWith(route))
+    
+    if (isApiRoute && isStateChanging && !isCsrfExempt) {
+        // Double-submit cookie pattern:
+        // Compare the CSRF token from the header with the one in the cookie
+        const headerToken = request.headers.get('x-csrf-token')
+        const cookieToken = request.cookies.get('csrf-token')?.value
+        
+        if (!headerToken || !cookieToken || headerToken !== cookieToken) {
+            return NextResponse.json(
+                { error: 'Invalid or missing CSRF token' }, 
+                { status: 403 }
+            )
+        }
+    }
 
     if (!isProtected) {
         return NextResponse.next()

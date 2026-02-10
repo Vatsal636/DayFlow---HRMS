@@ -2,15 +2,20 @@
 
 import { useState, useEffect } from "react"
 import { Search, Calendar, CheckCircle, XCircle, Clock, Filter, MessageSquare } from "lucide-react"
+import { useToast } from "@/components/Toast"
 
 export default function AdminLeavesPage() {
+    const toast = useToast()
     const [leaves, setLeaves] = useState([])
     const [loading, setLoading] = useState(true)
     const [filterStatus, setFilterStatus] = useState('ALL') // ALL, PENDING, APPROVED, REJECTED
     const [searchQuery, setSearchQuery] = useState("")
     const [processingId, setProcessingId] = useState(null)
+    const [csrfToken, setCsrfToken] = useState(null)
 
     useEffect(() => {
+        const token = localStorage.getItem('csrfToken')
+        if (token) setCsrfToken(token)
         fetchLeaves()
     }, [])
 
@@ -36,18 +41,21 @@ export default function AdminLeavesPage() {
         try {
             const res = await fetch('/api/admin/leaves', {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(csrfToken && { 'x-csrf-token': csrfToken })
+                },
                 body: JSON.stringify({ id, status, comments: comment || "" })
             })
             if (res.ok) {
                 // Update local state
                 setLeaves(leaves.map(l => l.id === id ? { ...l, status, adminComments: comment } : l))
             } else {
-                alert("Failed to update status")
+                toast.error("Failed to update leave status")
             }
         } catch (e) {
             console.error(e)
-            alert("Error updating status")
+            toast.error("Error updating leave status")
         } finally {
             setProcessingId(null)
         }

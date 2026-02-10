@@ -58,16 +58,14 @@ export default function AttendanceCalendar({
 
         // Check if date falls within an approved leave
         const isOnLeave = leavesData.some(leave => {
-            const startDate = new Date(leave.startDate)
-            const endDate = new Date(leave.endDate)
+            // Extract YYYY-MM-DD using UTC to avoid timezone offset issues
+            // Works with both ISO strings ("2026-02-12T00:00:00.000Z") and Date objects
+            const start = new Date(leave.startDate)
+            const end = new Date(leave.endDate)
+            const startStr = `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, '0')}-${String(start.getUTCDate()).padStart(2, '0')}`
+            const endStr = `${end.getUTCFullYear()}-${String(end.getUTCMonth() + 1).padStart(2, '0')}-${String(end.getUTCDate()).padStart(2, '0')}`
             
-            // Set time to midnight for accurate date comparison
-            startDate.setHours(0, 0, 0, 0)
-            endDate.setHours(23, 59, 59, 999)
-            const checkDate = new Date(date)
-            checkDate.setHours(0, 0, 0, 0)
-            
-            return checkDate >= startDate && checkDate <= endDate
+            return dateStr >= startStr && dateStr <= endStr
         })
 
         if (isOnLeave) {

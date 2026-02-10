@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import { createAuditLog, AuditActions, AuditResources } from '@/lib/audit'
+import { notifyLeaveApproved, notifyLeaveRejected } from '@/lib/notifications'
 
 export async function GET(request) {
     try {
@@ -75,79 +77,13 @@ export async function PUT(request) {
             const end = new Date(updatedLeave.endDate)
             const userId = updatedLeave.userId
 
-            // Loop through dates
-            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                // Check if attendance exists?
-                // Or upsert.
-                // Normalizing date to start of day handled by Prisma usually but better explicit.
-                const dateKey = new Date(d)
-                dateKey.setHours(0, 0, 0, 0) // UTC/Local consistency tricky here. Assuming local server.
+            // Loop through each leave date and mark attendance as LEAVE
+            // Use UTC dates to avoid timezone offset issues with @db.Date
+            const current = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()))
+            const endUTC = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()))
 
-                // Upsert attendance as LEAVE
-                await prisma.attendance.upsert({
-                    where: {
-                        // We don't have unique compound key in schema (userId + date) !!
-                        // Schema has `date DateTime @db.Date` but not unique constraint in generic `Attendance` model.
-                        // But `findFirst` is safer than raw upsert if unique isn't guaranteed.
-                        // Actually, schema check earlier showed `model Attendance { id ... }` but no unique constraint on user+date.
-                        // So upsert needs to find by `id` which we don't have.
-                        // Workaround: Find first, then update or create.
-                        id: -1 // Junk id
-                    },
-                    update: {}, // Dummy
-                    create: {
-                        userId,
-                        date: dateKey,
-                        status: 'LEAVE',
-                        checkIn: null,
-                        checkOut: null
-                    }
-                }).catch(async () => {
-                    // Fallback logic manually
-                    const existing = await prisma.attendance.findFirst({
-                        where: { userId, date: dateKey }
-                    })
-                    if (existing) {
-                        await prisma.attendance.update({
-                            where: { id: existing.id },
-                            data: { status: 'LEAVE' }
-                        })
-                    } else {
-                        await prisma.attendance.create({
-                            data: {
-                                userId,
-                                date: dateKey,
-                                status: 'LEAVE'
-                            }
-                        })
-                    }
-                })
-
-                // Better clean Logic:
-                // Find existing for that day
-                /*
-                const existing = await prisma.attendance.findFirst({
-                   where: { userId, date: dateKey }
-                })
-                if (existing) {
-                   await prisma.attendance.update({
-                       where: { id: existing.id }, 
-                       data: { status: 'LEAVE' }
-                   })
-                } else {
-                   await prisma.attendance.create({
-                       data: { userId, date: dateKey, status: 'LEAVE'}
-                   })
-                }
-                */
-            }
-            // Re-implementing clearer loop above inside try block is safer?
-            // Actually, let's stick to the cleaner logic block right here:
-
-            const current = new Date(start)
-            while (current <= end) {
-                const dateKey = new Date(current)
-                dateKey.setHours(0, 0, 0, 0)
+            while (current <= endUTC) {
+                const dateKey = new Date(current) // Already at UTC midnight
 
                 const existing = await prisma.attendance.findFirst({
                     where: { userId, date: dateKey }
@@ -156,7 +92,7 @@ export async function PUT(request) {
                 if (existing) {
                     await prisma.attendance.update({
                         where: { id: existing.id },
-                        data: { status: 'LEAVE' }
+                        data: { status: 'LEAVE', checkIn: null, checkOut: null }
                     })
                 } else {
                     await prisma.attendance.create({
@@ -164,8 +100,48 @@ export async function PUT(request) {
                     })
                 }
 
-                current.setDate(current.getDate() + 1)
+                current.setUTCDate(current.getUTCDate() + 1)
             }
+        }
+        
+        // Get employee name for audit log
+        const employee = await prisma.user.findUnique({
+            where: { id: updatedLeave.userId },
+            include: { details: true }
+        })
+        
+        const employeeName = employee?.details 
+            ? `${employee.details.firstName} ${employee.details.lastName}`
+            : employee?.employeeId || 'Unknown'
+        
+        // Audit log
+        const auditAction = status === 'APPROVED' 
+            ? AuditActions.LEAVE_APPROVED 
+            : status === 'REJECTED' 
+            ? AuditActions.LEAVE_REJECTED 
+            : 'LEAVE_UPDATED'
+        
+        await createAuditLog({
+            userId: payload.id,
+            action: auditAction,
+            resource: AuditResources.LEAVE,
+            resourceId: id.toString(),
+            details: `${status} leave for ${employeeName} from ${new Date(updatedLeave.startDate).toLocaleDateString()} to ${new Date(updatedLeave.endDate).toLocaleDateString()}`,
+            request
+        })
+        
+        // Send notification to employee
+        const leaveDetails = {
+            type: updatedLeave.type,
+            startDate: new Date(updatedLeave.startDate).toLocaleDateString(),
+            endDate: new Date(updatedLeave.endDate).toLocaleDateString(),
+            comments: comments || null
+        }
+        
+        if (status === 'APPROVED') {
+            await notifyLeaveApproved(updatedLeave.userId, leaveDetails)
+        } else if (status === 'REJECTED') {
+            await notifyLeaveRejected(updatedLeave.userId, leaveDetails)
         }
 
         return NextResponse.json({ success: true, leave: updatedLeave })

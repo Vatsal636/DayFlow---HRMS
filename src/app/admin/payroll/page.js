@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { Search, DollarSign, Save, Calculator, Banknote, Calendar as CalendarIcon, CheckCircle, AlertCircle } from "lucide-react"
+import { useToast } from "@/components/Toast"
 
 export default function AdminPayrollPage() {
+    const toast = useToast()
     const [activeTab, setActiveTab] = useState("define") // define | process
 
     // Define Structure State
@@ -20,8 +22,14 @@ export default function AdminPayrollPage() {
     const [processYear, setProcessYear] = useState(new Date().getFullYear())
     const [processedPayrolls, setProcessedPayrolls] = useState([])
     const [processing, setProcessing] = useState(false)
+    
+    // CSRF Token
+    const [csrfToken, setCsrfToken] = useState(null)
 
     useEffect(() => {
+        const token = localStorage.getItem('csrfToken')
+        if (token) setCsrfToken(token)
+        
         // Fetch Users
         const fetchUsers = async () => {
             try {
@@ -99,15 +107,18 @@ export default function AdminPayrollPage() {
         try {
             const res = await fetch('/api/admin/payroll/structure', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(csrfToken && { 'x-csrf-token': csrfToken })
+                },
                 body: JSON.stringify({ userId: selectedUser.id, wage: wageInput })
             })
             if (res.ok) {
                 const data = await res.json()
                 setSalaryStructure(data.salaryStructure)
-                alert("Salary structure saved successfully!")
+                toast.success("Salary structure saved successfully!")
             } else {
-                alert("Failed to save salary.")
+                toast.error("Failed to save salary structure")
             }
         } catch (e) {
             console.error(e)
@@ -121,14 +132,17 @@ export default function AdminPayrollPage() {
         try {
             const res = await fetch('/api/admin/payroll/process', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(csrfToken && { 'x-csrf-token': csrfToken })
+                },
                 body: JSON.stringify({ month: processMonth, year: processYear })
             })
             if (res.ok) {
                 const data = await res.json()
                 setProcessedPayrolls(data.payrolls)
             } else {
-                alert("Failed to process payroll")
+                toast.error("Failed to process payroll")
             }
         } catch (e) {
             console.error(e)
