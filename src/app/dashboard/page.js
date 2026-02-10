@@ -20,7 +20,8 @@ export default function EmployeeDashboard() {
         checkedIn: false,
         checkedOut: false,
         checkInTime: null,
-        checkOutTime: null
+        checkOutTime: null,
+        status: null
     })
     const [stats, setStats] = useState({
         presentDays: 0,
@@ -115,6 +116,10 @@ export default function EmployeeDashboard() {
                     checkedOut: false,
                     checkInTime: data.attendance.checkIn
                 })
+                toast.success('Checked in successfully!')
+            } else {
+                const data = await res.json()
+                toast.error(data.error || 'Check in failed')
             }
         } catch (error) {
             toast.error('Check in failed')
@@ -137,6 +142,10 @@ export default function EmployeeDashboard() {
                     checkedOut: true,
                     checkOutTime: data.attendance.checkOut
                 }))
+                toast.success('Checked out successfully!')
+            } else {
+                const data = await res.json()
+                toast.error(data.error || 'Check out failed')
             }
         } catch (error) {
             toast.error('Check out failed')
@@ -194,7 +203,19 @@ export default function EmployeeDashboard() {
                         <Clock className="w-32 h-32" />
                     </div>
 
-                    {!attendance.checkedIn ? (
+                    {attendance.status === 'LEAVE' ? (
+                        <div className="relative z-10 flex flex-col h-full justify-center gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-amber-500/20 p-3 rounded-xl">
+                                    <AlertCircle className="w-8 h-8 text-amber-200" />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-bold opacity-90">On Leave Today</h2>
+                                    <p className="text-blue-100">You have an approved leave for today. Enjoy your day off!</p>
+                                </div>
+                            </div>
+                        </div>
+                    ) : !attendance.checkedIn ? (
                         <div className="relative z-10 flex flex-col h-full justify-between gap-8">
                             <div>
                                 <h2 className="text-2xl font-bold opacity-90">Start Your Day</h2>

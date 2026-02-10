@@ -29,7 +29,8 @@ export async function GET(request) {
             checkedIn: !!attendance?.checkIn,
             checkedOut: !!attendance?.checkOut,
             checkInTime: attendance?.checkIn,
-            checkOutTime: attendance?.checkOut
+            checkOutTime: attendance?.checkOut,
+            status: attendance?.status || null
         })
     } catch (e) {
         return NextResponse.json({ error: e.message }, { status: 500 })
@@ -51,12 +52,15 @@ export async function POST(request) {
         const today = new Date(todayStr + 'T00:00:00.000Z')
         const checkInTime = new Date() // Current time with timezone
 
-        // Check if already checked in
+        // Check if already checked in or on leave
         const existing = await prisma.attendance.findFirst({
             where: { userId: payload.id, date: today }
         })
 
         if (existing) {
+            if (existing.status === 'LEAVE') {
+                return NextResponse.json({ error: 'You are on approved leave today. Cannot check in.' }, { status: 400 })
+            }
             return NextResponse.json({ error: 'Already checked in today' }, { status: 400 })
         }
 
