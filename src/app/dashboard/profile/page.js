@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { User, Mail, Phone, MapPin, Briefcase, Calendar, Save, Loader2, Camera, Bell, BellOff, Settings } from "lucide-react"
 
-export default function ProfilePage() {
+function ProfileContent() {
     const searchParams = useSearchParams()
     const defaultTab = searchParams.get('tab') || 'profile'
     
@@ -385,6 +385,18 @@ export default function ProfilePage() {
                 </div>
             )}
         </div>
+    )
+}
+
+export default function ProfilePage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+        }>
+            <ProfileContent />
+        </Suspense>
     )
 }
 

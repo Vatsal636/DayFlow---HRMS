@@ -1,13 +1,13 @@
 
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Search, Filter, MoreHorizontal, User, Mail, Phone, MapPin, Trash2, Edit, ShieldCheck, ShieldAlert, Send, Loader2 } from "lucide-react"
 import EditEmployeeModal from "@/components/EditEmployeeModal"
 import { useToast } from "@/components/Toast"
 
-export default function EmployeesPage() {
+function EmployeesContent() {
     const toast = useToast()
     const searchParams = useSearchParams()
     const initialFilter = searchParams.get('filter') === 'unverified' ? 'UNVERIFIED' : 'ALL'
@@ -261,5 +261,17 @@ export default function EmployeesPage() {
                 </div>
             </div>
         </div>
+    )
+}
+
+export default function EmployeesPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+        }>
+            <EmployeesContent />
+        </Suspense>
     )
 }
