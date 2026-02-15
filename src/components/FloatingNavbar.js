@@ -13,6 +13,7 @@ const defaultAdminItems = [
     { name: "Payroll", href: "/admin/payroll", icon: Banknote },
     { name: "Reports", href: "/admin/reports", icon: FileBarChart },
     { name: "Chat", href: "/admin/chat", icon: MessageCircle },
+    { name: "Leaderboard", href: "/admin/leaderboard", icon: Trophy },
     { name: "Leaves", href: "/admin/leaves", icon: Calendar },
 ]
 

@@ -1,7 +1,5 @@
 // Report generation utilities for PDF and Excel exports
-import jsPDF from 'jspdf'
-import 'jspdf-autotable'
-import * as XLSX from 'xlsx'
+// These functions use dynamic imports to ensure browser-side only execution
 
 // Company header for all reports
 const COMPANY_NAME = 'DayFlow HRMS'
@@ -10,7 +8,10 @@ const COMPANY_TAGLINE = 'Human Resource Management System'
 /**
  * Generate PDF report with table data
  */
-export function generatePDF({ title, subtitle, columns, data, filename, orientation = 'portrait' }) {
+export async function generatePDF({ title, subtitle, columns, data, filename, orientation = 'portrait' }) {
+    const jsPDF = (await import('jspdf')).default
+    await import('jspdf-autotable')
+    
     const doc = new jsPDF(orientation, 'mm', 'a4')
     const pageWidth = doc.internal.pageSize.getWidth()
     
@@ -83,7 +84,9 @@ export function generatePDF({ title, subtitle, columns, data, filename, orientat
 /**
  * Generate Excel workbook with data
  */
-export function generateExcel({ title, columns, data, filename, sheetName = 'Report' }) {
+export async function generateExcel({ title, columns, data, filename, sheetName = 'Report' }) {
+    const XLSX = await import('xlsx')
+    
     // Create workbook and worksheet
     const wb = XLSX.utils.book_new()
     
@@ -126,7 +129,9 @@ export function generateExcel({ title, columns, data, filename, sheetName = 'Rep
 /**
  * Generate individual payslip PDF
  */
-export function generatePayslip({ employee, payroll, salary, month, year }) {
+export async function generatePayslip({ employee, payroll, salary, month, year }) {
+    const jsPDF = (await import('jspdf')).default
+    
     const doc = new jsPDF('portrait', 'mm', 'a4')
     const pageWidth = doc.internal.pageSize.getWidth()
     

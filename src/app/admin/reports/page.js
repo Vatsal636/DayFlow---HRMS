@@ -94,7 +94,7 @@ export default function ReportsPage() {
 
             let blob
             if (format === 'pdf') {
-                blob = generatePDF({
+                blob = await generatePDF({
                     title,
                     subtitle,
                     columns,
@@ -103,7 +103,7 @@ export default function ReportsPage() {
                     orientation: activeTab === 'payroll' ? 'landscape' : 'portrait'
                 })
             } else {
-                blob = generateExcel({
+                blob = await generateExcel({
                     title,
                     columns,
                     data,
