@@ -9,8 +9,8 @@ const COMPANY_TAGLINE = 'Human Resource Management System'
  * Generate PDF report with table data
  */
 export async function generatePDF({ title, subtitle, columns, data, filename, orientation = 'portrait' }) {
-    const jsPDF = (await import('jspdf')).default
-    await import('jspdf-autotable')
+    const { default: jsPDF } = await import('jspdf')
+    const { default: autoTable } = await import('jspdf-autotable')
     
     const doc = new jsPDF(orientation, 'mm', 'a4')
     const pageWidth = doc.internal.pageSize.getWidth()
@@ -41,8 +41,8 @@ export async function generatePDF({ title, subtitle, columns, data, filename, or
     doc.setTextColor(148, 163, 184)
     doc.text(`Generated on: ${new Date().toLocaleString()}`, pageWidth / 2, 55, { align: 'center' })
     
-    // Table
-    doc.autoTable({
+    // Table - use autoTable directly
+    autoTable(doc, {
         head: [columns],
         body: data,
         startY: 62,
