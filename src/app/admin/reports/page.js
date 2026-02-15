@@ -232,7 +232,7 @@ export default function ReportsPage() {
                     <select
                         value={month}
                         onChange={(e) => setMonth(parseInt(e.target.value))}
-                        className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                         {MONTHS.map((m, i) => (
                             <option key={i} value={i + 1}>{m}</option>
@@ -242,7 +242,7 @@ export default function ReportsPage() {
                     <select
                         value={year}
                         onChange={(e) => setYear(parseInt(e.target.value))}
-                        className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                         {[2024, 2025, 2026, 2027].map(y => (
                             <option key={y} value={y}>{y}</option>
@@ -252,7 +252,7 @@ export default function ReportsPage() {
                     <select
                         value={selectedEmployee}
                         onChange={(e) => setSelectedEmployee(e.target.value)}
-                        className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[180px]"
+                        className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[180px]"
                     >
                         <option value="">All Employees</option>
                         {employees.map(emp => (
