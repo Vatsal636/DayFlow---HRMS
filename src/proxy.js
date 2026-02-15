@@ -5,7 +5,7 @@ const protectedRoutes = ['/dashboard', '/admin', '/profile']
 const adminRoutes = ['/admin', '/api/admin']
 const csrfExemptRoutes = ['/api/auth/login', '/api/auth/register', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/auth/verify-email', '/api/auth/resend-verification', '/api/auth/setup', '/api/auth/update-password', '/api/auth/logout', '/api/seed']
 
-export async function middleware(request) {
+export async function proxy(request) {
     const path = request.nextUrl.pathname
     const method = request.method
     const isProtected = protectedRoutes.some(route => path.startsWith(route))
