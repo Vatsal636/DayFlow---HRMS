@@ -36,7 +36,8 @@ export default function AttendanceCalendar({
         const firstDay = new Date(year, month, 1)
         const lastDay = new Date(year, month + 1, 0)
         const daysInMonth = lastDay.getDate()
-        const startDayIndex = firstDay.getDay() // 0 = Sunday
+        // Adjust for Monday as first day: 0=Sunday becomes 6, 1=Monday becomes 0, etc.
+        const startDayIndex = (firstDay.getDay() + 6) % 7
 
         const days = []
         for (let i = 0; i < startDayIndex; i++) days.push(null)
@@ -138,7 +139,7 @@ export default function AttendanceCalendar({
             {/* Calendar Grid */}
             <div className={`bg-white rounded-2xl p-6 border border-slate-100 shadow-sm transition-opacity ${loading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                 <div className="grid grid-cols-7 gap-4 mb-4">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
                         <div key={day} className="text-center text-sm font-bold text-slate-400 uppercase tracking-wider py-2">
                             {day}
                         </div>
