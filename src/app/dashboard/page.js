@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Clock, Calendar, ArrowRight, Sun, Trophy, Timer, AlertCircle, CheckCircle2, TrendingUp, RefreshCw } from "lucide-react"
-import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { Clock, Calendar, ArrowRight, Sun, Trophy, Timer, AlertCircle, CheckCircle2 } from "lucide-react"
 import { useToast } from "@/components/Toast"
 
 function formatTime(ms) {
@@ -31,13 +30,9 @@ export default function EmployeeDashboard() {
         leaveBalance: 0
     })
     const [leaderboard, setLeaderboard] = useState([])
-    const [analytics, setAnalytics] = useState(null)
-    const [analyticsLoading, setAnalyticsLoading] = useState(false)
     const [elapsed, setElapsed] = useState(0)
     const [isLoading, setIsLoading] = useState(true)
     const [csrfToken, setCsrfToken] = useState(null)
-    const [showAnalytics, setShowAnalytics] = useState(false)
-    const [filterMonths, setFilterMonths] = useState(6)
 
     // Get greeting based on time
     const getGreeting = () => {
@@ -55,28 +50,6 @@ export default function EmployeeDashboard() {
         const token = localStorage.getItem('csrfToken')
         if (token) setCsrfToken(token)
     }, [])
-
-    // Fetch Analytics
-    const fetchAnalytics = async () => {
-        setAnalyticsLoading(true)
-        try {
-            const res = await fetch(`/api/dashboard/analytics?months=${filterMonths}`)
-            if (res.ok) {
-                const data = await res.json()
-                setAnalytics(data)
-            }
-        } catch (e) {
-            console.error('Error fetching analytics:', e)
-        } finally {
-            setAnalyticsLoading(false)
-        }
-    }
-
-    useEffect(() => {
-        if (showAnalytics && !analytics) {
-            fetchAnalytics()
-        }
-    }, [showAnalytics, filterMonths])
 
     // Clock
     useEffect(() => {
@@ -177,40 +150,6 @@ export default function EmployeeDashboard() {
         } catch (error) {
             toast.error('Check out failed')
         }
-    }
-
-    // Prepare chart data
-    const prepareMonthlyAttendanceData = () => {
-        if (!analytics?.monthlyAttendance) return []
-        return analytics.monthlyAttendance.map(item => ({
-            month: `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(item.month) - 1]}`,
-            present: Number(item.present),
-            absent: Number(item.absent),
-            leave: Number(item.on_leave),
-            late: Number(item.late)
-        }))
-    }
-
-    const prepareSalaryTrendData = () => {
-        if (!analytics?.salaryHistory) return []
-        return analytics.salaryHistory.map(item => ({
-            month: `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][item.month - 1]} ${String(item.year).slice(2)}`,
-            netSalary: item.netSalary || 0,
-            grossSalary: item.grossSalary || 0,
-            deductions: item.totalDeductions || 0
-        }))
-    }
-
-    const prepareLeaveUsageData = () => {
-        if (!analytics?.leaveUsage) return []
-        const typeCount = {}
-        analytics.leaveUsage.forEach(leave => {
-            typeCount[leave.type] = (typeCount[leave.type] || 0) + leave.daysCount
-        })
-        return Object.entries(typeCount).map(([type, days]) => ({
-            type,
-            days
-        }))
     }
 
     const container = {
@@ -389,148 +328,6 @@ export default function EmployeeDashboard() {
                         )
                     })}
                 </div>
-            </motion.div>
-
-            {/* Analytics Section */}
-            <motion.div variants={item}>
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                        <TrendingUp className="w-6 h-6 text-blue-500" />
-                        Your Performance Analytics
-                    </h3>
-                    <button
-                        onClick={() => {
-                            setShowAnalytics(!showAnalytics)
-                            if (!showAnalytics && !analytics) {
-                                fetchAnalytics()
-                            }
-                        }}
-                        className="text-sm text-blue-600 font-bold hover:underline flex items-center gap-2"
-                    >
-                        {showAnalytics ? 'Hide' : 'Show'} Analytics
-                        <ArrowRight className={`w-4 h-4 transition-transform ${showAnalytics ? 'rotate-90' : ''}`} />
-                    </button>
-                </div>
-
-                {showAnalytics && (
-                    <div className="space-y-6">
-                        {/* Filter */}
-                        <div className="flex justify-end items-center gap-3">
-                            <select
-                                value={filterMonths}
-                                onChange={(e) => setFilterMonths(Number(e.target.value))}
-                                className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium bg-white text-slate-900"
-                            >
-                                <option value={3}>Last 3 months</option>
-                                <option value={6}>Last 6 months</option>
-                                <option value={12}>Last 12 months</option>
-                            </select>
-                            <button
-                                onClick={fetchAnalytics}
-                                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                                title="Refresh"
-                            >
-                                <RefreshCw className={`w-5 h-5 ${analyticsLoading ? 'animate-spin' : ''}`} />
-                            </button>
-                        </div>
-
-                        {analyticsLoading ? (
-                            <div className="flex items-center justify-center py-12">
-                                <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
-                            </div>
-                        ) : analytics ? (
-                            <>
-                                {/* Stats Cards */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-2xl text-white shadow-lg">
-                                        <p className="text-green-100 text-sm font-medium">Attendance Rate</p>
-                                        <h3 className="text-4xl font-bold mt-2">{analytics.stats.attendanceRate}%</h3>
-                                        <p className="text-xs text-green-100 mt-2">{analytics.stats.presentDays} of {analytics.stats.totalDays} days</p>
-                                    </div>
-                                    
-                                    <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-6 rounded-2xl text-white shadow-lg">
-                                        <p className="text-amber-100 text-sm font-medium">Leave Balance</p>
-                                        <h3 className="text-4xl font-bold mt-2">{analytics.leaveBalance}</h3>
-                                        <p className="text-xs text-amber-100 mt-2">Days remaining</p>
-                                    </div>
-                                    
-                                    <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-2xl text-white shadow-lg">
-                                        <p className="text-purple-100 text-sm font-medium">Avg Salary</p>
-                                        <h3 className="text-4xl font-bold mt-2">
-                                            ₹{analytics.salaryHistory.length > 0 
-                                                ? (analytics.salaryHistory.reduce((sum, s) => sum + s.netSalary, 0) / analytics.salaryHistory.length / 1000).toFixed(0)
-                                                : 0}K
-                                        </h3>
-                                        <p className="text-xs text-purple-100 mt-2">Last {filterMonths} months</p>
-                                    </div>
-                                </div>
-
-                                {/* Charts */}
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    {/* Monthly Attendance */}
-                                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                                        <h4 className="text-lg font-bold text-slate-900 mb-4">Monthly Attendance</h4>
-                                        <ResponsiveContainer width="100%" height={300}>
-                                            <BarChart data={prepareMonthlyAttendanceData()}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                                <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                                                <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                                                <Tooltip />
-                                                <Legend />
-                                                <Bar dataKey="present" fill="#10B981" name="Present" radius={[8, 8, 0, 0]} />
-                                                <Bar dataKey="late" fill="#F59E0B" name="Late" radius={[8, 8, 0, 0]} />
-                                                <Bar dataKey="absent" fill="#EF4444" name="Absent" radius={[8, 8, 0, 0]} />
-                                                <Bar dataKey="leave" fill="#8B5CF6" name="Leave" radius={[8, 8, 0, 0]} />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-
-                                    {/* Salary Trend */}
-                                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                                        <h4 className="text-lg font-bold text-slate-900 mb-4">Salary Trend</h4>
-                                        <ResponsiveContainer width="100%" height={300}>
-                                            <AreaChart data={prepareSalaryTrendData()}>
-                                                <defs>
-                                                    <linearGradient id="colorSalary" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3}/>
-                                                        <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
-                                                    </linearGradient>
-                                                </defs>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                                <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                                                <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                                                <Tooltip formatter={(value) => `₹${(value / 1000).toFixed(1)}K`} />
-                                                <Legend />
-                                                <Area type="monotone" dataKey="netSalary" stroke="#8B5CF6" fillOpacity={1} fill="url(#colorSalary)" name="Net Salary" />
-                                                <Area type="monotone" dataKey="deductions" stroke="#EF4444" fill="#EF4444" fillOpacity={0.2} name="Deductions" />
-                                            </AreaChart>
-                                        </ResponsiveContainer>
-                                    </div>
-
-                                    {/* Leave Usage */}
-                                    {prepareLeaveUsageData().length > 0 && (
-                                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2">
-                                            <h4 className="text-lg font-bold text-slate-900 mb-4">Leave Usage by Type</h4>
-                                            <ResponsiveContainer width="100%" height={250}>
-                                                <BarChart data={prepareLeaveUsageData()} layout="vertical">
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                                    <XAxis type="number" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                                                    <YAxis dataKey="type" type="category" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                                                    <Tooltip />
-                                                    <Bar dataKey="days" fill="#3B82F6" name="Days Used" radius={[0, 8, 8, 0]} />
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    )}
-                                </div>
-                            </>
-                        ) : (
-                            <div className="text-center py-12 text-slate-500">
-                                No analytics data available
-                            </div>
-                        )}
-                    </div>
-                )}
             </motion.div>
         </motion.div>
     )

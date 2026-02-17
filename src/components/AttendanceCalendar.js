@@ -72,6 +72,12 @@ export default function AttendanceCalendar({
             return { color: 'bg-purple-100 text-purple-700', status: 'Leave', record: null }
         }
 
+        // Check for weekends (Saturday & Sunday) BEFORE checking attendance records
+        const dayOfWeek = date.getDay()
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+            return { color: 'bg-slate-50 text-slate-400', status: 'Weekend', record: null }
+        }
+
         // Find matching attendance record
         const record = attendanceData.find(a => {
             const recordDate = new Date(a.date)
@@ -95,7 +101,6 @@ export default function AttendanceCalendar({
         today.setHours(0, 0, 0, 0)
 
         if (date > today) return { color: 'bg-white', status: '', record: null }
-        if (date.getDay() === 0) return { color: 'bg-slate-50 text-slate-400', status: 'Weekend', record: null }
 
         if (joiningDate && date < new Date(joiningDate)) return { color: 'bg-white text-slate-300', status: '-', record: null }
 

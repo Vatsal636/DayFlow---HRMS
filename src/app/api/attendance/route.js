@@ -52,6 +52,12 @@ export async function POST(request) {
         const today = new Date(todayStr + 'T00:00:00.000Z')
         const checkInTime = new Date() // Current time with timezone
 
+        // Check if today is weekend (Saturday or Sunday)
+        const dayOfWeek = now.getDay()
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+            return NextResponse.json({ error: 'Check-in is not allowed on weekends (Saturday & Sunday)' }, { status: 400 })
+        }
+
         // Check if already checked in or on leave
         const existing = await prisma.attendance.findFirst({
             where: { userId: payload.id, date: today }
