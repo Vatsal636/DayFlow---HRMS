@@ -86,13 +86,18 @@ export async function GET(request) {
             if (dayOfWeek === 0 || dayOfWeek === 6) weekends++
         }
 
-        // Fetch leave balance
-        const leaveBalance = await prisma.user.findUnique({
-            where: { id: userId },
-            select: {
-                leaveBalance: true
+        // Calculate leave balance (Annual limit 12 - approved leaves this year)
+        const totalApprovedLeavesThisYear = await prisma.leaveRequest.count({
+            where: {
+                userId,
+                status: 'APPROVED',
+                startDate: {
+                    gte: new Date(year, 0, 1), // Start of current year
+                    lte: new Date(year, 11, 31) // End of current year
+                }
             }
         })
+        const leaveBalance = Math.max(0, 12 - totalApprovedLeavesThisYear)
 
         return NextResponse.json({
             salary: {
@@ -114,7 +119,7 @@ export async function GET(request) {
                 daysInMonth,
                 monthName: startDate.toLocaleString('default', { month: 'long', year: 'numeric' })
             },
-            leaveBalance: leaveBalance?.leaveBalance || 0
+            leaveBalance
         })
 
     } catch (e) {
