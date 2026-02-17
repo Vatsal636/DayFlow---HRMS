@@ -99,11 +99,13 @@ export async function POST(request) {
                 }
             })
 
-            // 3. Count Sundays and Approved Leaves (Auto-paid)
-            let sundays = 0
+            // 3. Count Weekends (Saturday & Sunday) and Approved Leaves (Auto-paid)
+            let weekends = 0
             for (let d = 1; d <= daysInMonth; d++) {
                 const date = new Date(year, month, d)
-                if (date.getDay() === 0) sundays++
+                const dayOfWeek = date.getDay()
+                // Count both Saturday (6) and Sunday (0) as paid weekends
+                if (dayOfWeek === 0 || dayOfWeek === 6) weekends++
             }
 
             // Count approved leaves
@@ -116,7 +118,7 @@ export async function POST(request) {
                 }
             })
 
-            const payableDays = Math.min(attendanceCount + sundays + approvedLeaves, daysInMonth)
+            const payableDays = Math.min(attendanceCount + weekends + approvedLeaves, daysInMonth)
 
             // 4. Calculate Payout using Industry Standard Formula
             // Gross Salary = Basic + HRA + Allowances
