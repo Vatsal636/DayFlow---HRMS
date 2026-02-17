@@ -12,10 +12,13 @@ export default function SalarySimulatorPage() {
     // Current Month Stats
     const [currentStats, setCurrentStats] = useState({
         presentDays: 0,
+        lateDays: 0,
         absentDays: 0,
         approvedLeaves: 0,
         weekends: 0,
         daysInMonth: 30,
+        currentDay: 1,
+        remainingDays: 29,
         monthName: 'Current Month'
     })
 
@@ -61,18 +64,16 @@ export default function SalarySimulatorPage() {
     }, [salary, currentStats, additionalAbsent])
 
     const calculateSalary = () => {
-        const { presentDays, absentDays, approvedLeaves, weekends, daysInMonth } = currentStats
+        const { presentDays, lateDays, absentDays, approvedLeaves, weekends, daysInMonth } = currentStats
 
-        // Total absent = actual absent + projected additional absent
+        // Total absent days after projection
         const totalAbsent = absentDays + additionalAbsent
 
-        // Payable Days = Present + Weekends + Approved Leaves
-        // (This matches the exact payroll calculation logic)
-        const payableDays = Math.min(presentDays + weekends + approvedLeaves, daysInMonth)
-        
-        // Days we won't get paid for (after simulation)
-        const unpaidDays = daysInMonth - payableDays - additionalAbsent
-        const finalPayableDays = Math.max(0, daysInMonth - totalAbsent - (daysInMonth - payableDays))
+        // Payable Days = Present + Late (still paid) + Weekends + Approved Leaves
+        // Late check-ins are still paid, just marked late
+        // Then subtract projected additional absent days
+        const basePayableDays = presentDays + lateDays + weekends + approvedLeaves
+        const finalPayableDays = Math.max(0, basePayableDays - additionalAbsent)
 
         // Gross Salary Calculation (Exact match with payroll structure)
         const grossEarnings = salary.basic + salary.hra + salary.stdAllowance + 
@@ -142,11 +143,23 @@ export default function SalarySimulatorPage() {
             </div>
 
             {/* Current Month Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <StatsCard label="Present Days" value={currentStats.presentDays} color="green" />
-                <StatsCard label="Weekends (Paid)" value={currentStats.weekends} color="slate" />
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <StatsCard label="Present (On-time)" value={currentStats.presentDays} color="green" />
+                <StatsCard label="Late Check-ins" value={currentStats.lateDays} color="orange" />
                 <StatsCard label="Approved Leaves" value={currentStats.approvedLeaves} color="purple" />
                 <StatsCard label="Absent Days" value={currentStats.absentDays} color="red" />
+                <StatsCard label="Weekends (Paid)" value={currentStats.weekends} color="slate" />
+            </div>
+
+            {/* Current Status Summary */}
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
+                <div className="flex items-center gap-3 text-sm">
+                    <Calendar className="w-5 h-5 text-blue-600" />
+                    <div className="flex-1">
+                        <p className="text-blue-900 font-medium">Today is Day {currentStats.currentDay} of {currentStats.daysInMonth} days in {currentStats.monthName}</p>
+                        <p className="text-blue-700 mt-1">You have <span className="font-bold">{currentStats.remainingDays} days remaining</span> in this month to project absences.</p>
+                    </div>
+                </div>
             </div>
 
             <div className="grid lg:grid-cols-3 gap-8">
@@ -196,7 +209,7 @@ export default function SalarySimulatorPage() {
                                 <input
                                     type="range"
                                     min="0"
-                                    max={Math.min(20, currentStats.daysInMonth - currentStats.absentDays)}
+                                    max={currentStats.remainingDays}
                                     step="1"
                                     value={additionalAbsent}
                                     onChange={(e) => setAdditionalAbsent(parseInt(e.target.value))}
@@ -204,7 +217,7 @@ export default function SalarySimulatorPage() {
                                 />
                                 <div className="flex justify-between text-xs text-slate-500">
                                     <span>0 Days</span>
-                                    <span>Max: {Math.min(20, currentStats.daysInMonth - currentStats.absentDays)} Days</span>
+                                    <span>Max: {currentStats.remainingDays} Days (Remaining in month)</span>
                                 </div>
                             </div>
 
@@ -214,10 +227,11 @@ export default function SalarySimulatorPage() {
                                     <div className="text-sm text-amber-800">
                                         <p className="font-semibold mb-1">How it works:</p>
                                         <ul className="list-disc list-inside space-y-1 text-xs">
-                                            <li>Slide to project additional absent days</li>
-                                            <li>Your net salary updates in real-time</li>
-                                            <li>Calculation matches exact payroll system</li>
-                                            <li>Absent days = Loss of Pay (LOP)</li>
+                                            <li>Shows your actual attendance status till today</li>
+                                            <li>Slider limited to remaining days in month ({currentStats.remainingDays} days left)</li>
+                                            <li>Project future absences to see salary impact</li>
+                                            <li>Late check-ins are still paid (no deduction)</li>
+                                            <li>Absent days result in Loss of Pay (LOP)</li>
                                         </ul>
                                     </div>
                                 </div>
@@ -285,21 +299,45 @@ export default function SalarySimulatorPage() {
 
                         {/* Summary */}
                         <div className="space-y-2 text-sm">
+                            <p className="font-semibold text-blue-300 mb-3">Status Summary</p>
                             <div className="flex justify-between text-slate-400">
                                 <span>Total Days in Month</span>
                                 <span>{currentStats.daysInMonth}</span>
                             </div>
                             <div className="flex justify-between text-slate-400">
+                                <span>Current Day</span>
+                                <span>Day {currentStats.currentDay}</span>
+                            </div>
+                            <div className="flex justify-between text-green-300">
+                                <span>Present (On-time)</span>
+                                <span>{currentStats.presentDays}</span>
+                            </div>
+                            <div className="flex justify-between text-orange-300">
+                                <span>Late Check-ins</span>
+                                <span>{currentStats.lateDays}</span>
+                            </div>
+                            <div className="flex justify-between text-purple-300">
+                                <span>Approved Leaves</span>
+                                <span>{currentStats.approvedLeaves}</span>
+                            </div>
+                            <div className="flex justify-between text-slate-400">
                                 <span>Weekends (Auto-paid)</span>
                                 <span>{currentStats.weekends}</span>
                             </div>
-                            <div className="flex justify-between text-green-300 font-medium">
-                                <span>Payable Days</span>
-                                <span>{breakdown.payableDays}</span>
+                            <div className="flex justify-between text-red-300">
+                                <span>Actual Absent Days</span>
+                                <span>{currentStats.absentDays}</span>
                             </div>
-                            <div className="flex justify-between text-red-300 font-medium">
-                                <span>Total Unpaid Days</span>
-                                <span>{currentStats.daysInMonth - breakdown.payableDays}</span>
+                            {additionalAbsent > 0 && (
+                                <div className="flex justify-between text-red-400 font-bold bg-red-500/20 p-2 rounded-lg">
+                                    <span>Projected Additional Absent</span>
+                                    <span>+{additionalAbsent}</span>
+                                </div>
+                            )}
+                            <div className="h-px bg-white/20 my-3" />
+                            <div className="flex justify-between text-green-300 font-bold text-base">
+                                <span>Final Payable Days</span>
+                                <span>{breakdown.payableDays}</span>
                             </div>
                         </div>
 
@@ -320,6 +358,7 @@ export default function SalarySimulatorPage() {
 function StatsCard({ label, value, color }) {
     const colors = {
         green: 'bg-green-50 border-green-200 text-green-600',
+        orange: 'bg-orange-50 border-orange-200 text-orange-600',
         red: 'bg-red-50 border-red-200 text-red-600',
         purple: 'bg-purple-50 border-purple-200 text-purple-600',
         slate: 'bg-slate-50 border-slate-200 text-slate-600'

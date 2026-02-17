@@ -46,7 +46,7 @@ export async function GET(request) {
         }
 
         // Fetch Current Month Attendance Stats
-        const attendanceRecords = await prisma.attendance.count({
+        const attendanceRecords = await prisma.attendance.findMany({
             where: {
                 userId,
                 date: {
@@ -54,6 +54,26 @@ export async function GET(request) {
                     lte: endDate
                 },
                 status: { in: ['PRESENT', 'HALF_DAY'] }
+            }
+        })
+
+        // Count present days (on-time)
+        let presentDays = 0
+        let lateDays = 0
+        
+        attendanceRecords.forEach(record => {
+            if (record.checkIn) {
+                const checkIn = new Date(record.checkIn)
+                const threshold = new Date(record.checkIn)
+                threshold.setHours(9, 30, 0, 0)
+                
+                if (checkIn > threshold) {
+                    lateDays++
+                } else {
+                    presentDays++
+                }
+            } else {
+                presentDays++ // No checkIn time, count as present
             }
         })
 
@@ -86,6 +106,10 @@ export async function GET(request) {
             if (dayOfWeek === 0 || dayOfWeek === 6) weekends++
         }
 
+        // Calculate current day and remaining days
+        const currentDay = now.getDate()
+        const remainingDays = daysInMonth - currentDay
+
         // Calculate leave balance (Annual limit 12 - approved leaves this year)
         const totalApprovedLeavesThisYear = await prisma.leaveRequest.count({
             where: {
@@ -112,11 +136,14 @@ export async function GET(request) {
                 profTax: salary.profTax
             },
             currentStats: {
-                presentDays: attendanceRecords,
+                presentDays,
+                lateDays,
                 absentDays,
                 approvedLeaves,
                 weekends,
                 daysInMonth,
+                currentDay,
+                remainingDays,
                 monthName: startDate.toLocaleString('default', { month: 'long', year: 'numeric' })
             },
             leaveBalance
