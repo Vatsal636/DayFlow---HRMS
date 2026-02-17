@@ -14,11 +14,14 @@ DayFlow HRMS now includes **automatic monthly payroll generation** that runs at 
 ### 2. **Smart Generation Logic**
 ```
 IF (today is last day of month) THEN
-    IF (payroll already generated for this month) THEN
-        Skip (no action needed)
+    IF (payroll exists for this month) THEN
+        Delete old payroll records
+        Regenerate with FULL MONTH data
     ELSE
         Generate payroll for all eligible employees
     END IF
+    
+    (This ensures employees always get paid for ENTIRE month)
 END IF
 ```
 
@@ -33,9 +36,10 @@ END IF
 
 ### ✨ **Intelligent Checks**
 1. **Month-end Detection**: Only runs on the last day of month
-2. **Duplicate Prevention**: Checks if payroll already exists
-3. **Employee Eligibility**: Skips employees not yet joined
-4. **Calculation Parity**: Uses exact same logic as manual generation
+2. **Full Month Calculation**: Always regenerates with complete attendance data
+3. **Replaces Mid-Month Payrolls**: Deletes partial payrolls and creates final one
+4. **Employee Eligibility**: Skips employees not yet joined
+5. **Calculation Parity**: Uses exact same logic as manual generation
 
 ### 🔒 **Security**
 - Protected by `CRON_SECRET` environment variable
@@ -95,20 +99,38 @@ The existing manual payroll generation remains **fully functional**:
 3. Generates for all employees immediately
 
 **Use Cases for Manual Generation:**
-- Mid-month payroll processing
-- Advance salary generation
-- Re-processing if corrections needed
+- Mid-month payroll processing (preview/advance)
+- Quick salary checks during the month
 - Testing payroll before month-end
+- Advance payments (will be replaced by final auto-payroll on last day)
 
 ## How Auto-Generation Handles Edge Cases
 
-### Case 1: Admin Already Generated Payroll
+### Case 1: Admin Generated Payroll on Day 5
 ```
-Result: SKIP (no duplicate generation)
-Message: "Payroll already generated for this month"
+Day 5: Admin generates payroll (calculates for 5 days only)
+Day 28 (Last Day): Auto-payroll runs
+Result: REGENERATE with full 28 days data
+Action: Deletes day-5 payroll, creates new with complete attendance
+Message: "Regenerated with full month data (replaced 15 existing records)"
 ```
 
-### Case 2: Employee Joined Mid-Month
+### Case 2: Admin Generated Multiple Times During Month
+```
+Day 10: Admin generates payroll (10 days)
+Day 20: Admin regenerates (20 days)
+Day 30 (Last Day): Auto-payroll runs
+Result: REGENERATE with full 30 days data
+Action: Deletes all previous payrolls, creates final complete one
+```
+
+### Case 3: No Manual Generation During Month
+```
+Result: GENERATE fresh payroll on last day
+Message: "Monthly payroll auto-generated successfully"
+```
+
+### Case 4: Employee Joined Mid-Month
 ```
 Result: GENERATE (pro-rated for days worked)
 Payroll: Only for days after joining date

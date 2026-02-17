@@ -36,7 +36,10 @@ export async function GET(request) {
 
         console.log(`🤖 Auto Payroll: Running for ${currentMonth + 1}/${currentYear}`)
 
-        // Check if payroll is already generated for this month
+        // On last day of month, ALWAYS regenerate payroll with full month data
+        // This ensures employees get paid for ENTIRE month even if admin generated mid-month
+        // Mid-month payrolls act as previews; this is the final calculation
+        
         const existingPayrolls = await prisma.payroll.count({
             where: {
                 month: currentMonth,
@@ -45,17 +48,17 @@ export async function GET(request) {
         })
 
         if (existingPayrolls > 0) {
-            console.log(`✅ Payroll already generated for ${currentMonth + 1}/${currentYear}`)
-            return NextResponse.json({ 
-                message: 'Payroll already generated for this month',
-                month: currentMonth + 1,
-                year: currentYear,
-                count: existingPayrolls,
-                skipped: true
+            console.log(`⚠️ Found ${existingPayrolls} existing payrolls - will regenerate with full month data`)
+            // Delete old payrolls to regenerate with complete attendance
+            await prisma.payroll.deleteMany({
+                where: {
+                    month: currentMonth,
+                    year: currentYear
+                }
             })
         }
 
-        // Generate payroll for all employees
+        // Generate payroll for all employees with FULL MONTH data
         const result = await generateMonthlyPayroll(currentMonth, currentYear, request)
 
         console.log(`✅ Auto Payroll Generated: ${result.generated} employees`)
@@ -66,18 +69,22 @@ export async function GET(request) {
             action: AuditActions.PAYROLL_PROCESSED,
             resource: AuditResources.PAYROLL,
             resourceId: `${currentMonth}-${currentYear}`,
-            details: `Automatic payroll generation for ${new Date(currentYear, currentMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} - Generated: ${result.generated}, Skipped: ${result.skipped}`,
+            details: `Automatic payroll generation for ${new Date(currentYear, currentMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} - Generated: ${result.generated}, Skipped: ${result.skipped}${existingPayrolls > 0 ? ` (Regenerated with full month data, replaced ${existingPayrolls} existing payrolls)` : ''}`,
             request
         })
 
         return NextResponse.json({
             success: true,
-            message: 'Monthly payroll auto-generated successfully',
+            message: existingPayrolls > 0 
+                ? `Monthly payroll regenerated with full month data (replaced ${existingPayrolls} existing records)`
+                : 'Monthly payroll auto-generated successfully',
             month: currentMonth + 1,
             year: currentYear,
             generated: result.generated,
             skipped: result.skipped,
-            skippedEmployees: result.skippedEmployees
+            skippedEmployees: result.skippedEmployees,
+            regenerated: existingPayrolls > 0,
+            replacedCount: existingPayrolls
         })
 
     } catch (error) {
@@ -197,7 +204,16 @@ async function generateMonthlyPayroll(month, year, request) {
         const perDayPF = salary.pf / daysInMonth
         const earnedPF = Math.round(perDayPF * payableDays)
         const earnedProfTax = payableDays >= 20 ? salary.profTax : 0
-        
+        Delete any existing payroll for this employee/month (cleanup)
+        await prisma.payroll.deleteMany({
+            where: {
+                userId: emp.id,
+                month: parseInt(month),
+                year: parseInt(year)
+            }
+        })
+
+        // Create fresh payroll record with full month data
         const totalDeductions = earnedPF + earnedProfTax
         const netPay = earnedGross - totalDeductions
 
