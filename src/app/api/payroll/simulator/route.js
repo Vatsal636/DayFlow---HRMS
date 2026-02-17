@@ -21,44 +21,104 @@ export async function GET(request) {
         // Fetch Salary Structure
         const user = await prisma.user.findUnique({
             where: { id: userId },
-            include: { salary: true }
+            include: { 
+                salary: true,
+                details: true
+            }
         })
 
-        const grossSalary = user?.salary?.wage || 50000 // Default fallback
+        // Use actual salary structure or default
+        let salary = user?.salary
+        if (!salary) {
+            const wage = 50000
+            const basic = wage * 0.5
+            salary = {
+                wage: wage,
+                basic: basic,
+                hra: basic * 0.5,
+                stdAllowance: 4167,
+                performanceBonus: wage * 0.0833,
+                lta: wage * 0.0833,
+                fixedAllowance: 4003,
+                pf: basic * 0.12,
+                profTax: 200
+            }
+        }
 
-        // Fetch Attendance Stats for Current Month
-        const records = await prisma.attendance.findMany({
+        // Fetch Current Month Attendance Stats
+        const attendanceRecords = await prisma.attendance.count({
             where: {
                 userId,
                 date: {
                     gte: startDate,
                     lte: endDate
-                }
+                },
+                status: { in: ['PRESENT', 'HALF_DAY'] }
             }
         })
 
-        let unpaidLeavesTaken = 0
-        let paidLeavesTaken = 0 // Assuming 'LEAVE' is paid unless specified otherwise? 
-        // For simplicity: 'LEAVE' = Paid, 'ABSENT' = Unpaid.
-        // The prompt says "amount of times they were absent".
+        const absentDays = await prisma.attendance.count({
+            where: {
+                userId,
+                date: {
+                    gte: startDate,
+                    lte: endDate
+                },
+                status: 'ABSENT'
+            }
+        })
 
-        records.forEach(r => {
-            if (r.status === 'ABSENT') unpaidLeavesTaken++
-            if (r.status === 'LEAVE') paidLeavesTaken++
-            // 'LATE' doesn't deduct salary usually unless threshold logic, skipping for now.
+        // Count approved leaves for current month
+        const approvedLeaves = await prisma.leaveRequest.count({
+            where: {
+                userId,
+                status: 'APPROVED',
+                startDate: { lte: endDate },
+                endDate: { gte: startDate }
+            }
+        })
+
+        // Count weekends in current month
+        let weekends = 0
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(year, month, d)
+            const dayOfWeek = date.getDay()
+            if (dayOfWeek === 0 || dayOfWeek === 6) weekends++
+        }
+
+        // Fetch leave balance
+        const leaveBalance = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                leaveBalance: true
+            }
         })
 
         return NextResponse.json({
-            grossSalary,
-            stats: {
-                unpaidLeavesTaken,
-                paidLeavesTaken,
+            salary: {
+                wage: salary.wage,
+                basic: salary.basic,
+                hra: salary.hra,
+                stdAllowance: salary.stdAllowance,
+                performanceBonus: salary.performanceBonus || 0,
+                lta: salary.lta || 0,
+                fixedAllowance: salary.fixedAllowance || 0,
+                pf: salary.pf,
+                profTax: salary.profTax
+            },
+            currentStats: {
+                presentDays: attendanceRecords,
+                absentDays,
+                approvedLeaves,
+                weekends,
                 daysInMonth,
-                monthName: startDate.toLocaleString('default', { month: 'long' })
-            }
+                monthName: startDate.toLocaleString('default', { month: 'long', year: 'numeric' })
+            },
+            leaveBalance: leaveBalance?.leaveBalance || 0
         })
 
     } catch (e) {
+        console.error('Simulator API Error:', e)
         return NextResponse.json({ error: e.message }, { status: 500 })
     }
 }

@@ -1,38 +1,38 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Calculator, DollarSign, Sliders, AlertCircle, RefreshCw } from "lucide-react"
+import { Calculator, DollarSign, TrendingDown, AlertCircle, RefreshCw, Calendar, Users } from "lucide-react"
 
 export default function SalarySimulatorPage() {
     const [loading, setLoading] = useState(true)
 
-    // Inputs
-    const [grossSalary, setGrossSalary] = useState(50000)
-    const [sliders, setSliders] = useState({
-        paidLeaves: 0,
-        unpaidLeaves: 0,
-        sickLeaves: 0
-    })
-
-    // Base Stats (Actuals from DB)
-    const [baseStats, setBaseStats] = useState({
-        unpaidLeavesTaken: 0,
-        paidLeavesTaken: 0,
+    // Salary Structure from API
+    const [salary, setSalary] = useState(null)
+    
+    // Current Month Stats
+    const [currentStats, setCurrentStats] = useState({
+        presentDays: 0,
+        absentDays: 0,
+        approvedLeaves: 0,
+        weekends: 0,
         daysInMonth: 30,
         monthName: 'Current Month'
     })
 
-    // Breakdown
+    // Simulation Inputs - Additional days to project
+    const [additionalAbsent, setAdditionalAbsent] = useState(0)
+    
+    // Calculated Breakdown
     const [breakdown, setBreakdown] = useState({
-        basic: 0,
-        hra: 0,
-        da: 0,
-        pf: 0,
-        profTax: 0,
+        grossEarnings: 0,
+        earnedGross: 0,
+        earnedPF: 0,
+        earnedProfTax: 0,
         totalDeductions: 0,
         netPay: 0,
-        lossOfPay: 0,
-        payableDays: 0
+        payableDays: 0,
+        totalAbsent: 0,
+        lossOfPay: 0
     })
 
     useEffect(() => {
@@ -44,8 +44,8 @@ export default function SalarySimulatorPage() {
             const res = await fetch('/api/payroll/simulator')
             if (res.ok) {
                 const data = await res.json()
-                setGrossSalary(data.grossSalary)
-                setBaseStats(data.stats)
+                setSalary(data.salary)
+                setCurrentStats(data.currentStats)
             }
         } catch (e) {
             console.error(e)
@@ -54,210 +54,281 @@ export default function SalarySimulatorPage() {
         }
     }
 
-    // Real-time Calculation Effect
+    // Real-time Calculation (Matches exact payroll logic)
     useEffect(() => {
+        if (!salary) return
         calculateSalary()
-    }, [grossSalary, sliders, baseStats])
+    }, [salary, currentStats, additionalAbsent])
 
     const calculateSalary = () => {
-        const { daysInMonth, unpaidLeavesTaken } = baseStats
+        const { presentDays, absentDays, approvedLeaves, weekends, daysInMonth } = currentStats
 
-        // Total Unpaid Days = Actual Unpaid + Projected Unpaid sliders
-        const totalUnpaidDays = unpaidLeavesTaken + parseInt(sliders.unpaidLeaves)
+        // Total absent = actual absent + projected additional absent
+        const totalAbsent = absentDays + additionalAbsent
 
-        // Sundays (Auto assume 4)
-        const sundays = 4
+        // Payable Days = Present + Weekends + Approved Leaves
+        // (This matches the exact payroll calculation logic)
+        const payableDays = Math.min(presentDays + weekends + approvedLeaves, daysInMonth)
+        
+        // Days we won't get paid for (after simulation)
+        const unpaidDays = daysInMonth - payableDays - additionalAbsent
+        const finalPayableDays = Math.max(0, daysInMonth - totalAbsent - (daysInMonth - payableDays))
 
-        // Payable Days Calculation
-        // Easiest Logic: TotDays - Unpaid
-        const payableDays = Math.max(0, daysInMonth - totalUnpaidDays)
+        // Gross Salary Calculation (Exact match with payroll structure)
+        const grossEarnings = salary.basic + salary.hra + salary.stdAllowance + 
+                             (salary.fixedAllowance || 0) + (salary.performanceBonus || 0) + 
+                             (salary.lta || 0)
 
-        // Breakdown Logic (Matches Backend)
-        const basic = Math.round(grossSalary * 0.5)
-        const hra = Math.round(grossSalary * 0.2) // Assumption
-        const da = Math.round(grossSalary * 0.1)  // Assumption
-        const otherAllowances = grossSalary - (basic + hra + da)
+        // Pro-rated calculation based on payable days
+        const perDayGross = grossEarnings / daysInMonth
+        const earnedGross = Math.round(perDayGross * finalPayableDays)
 
-        const pf = Math.round(basic * 0.12)
-        const profTax = 200
+        // Deductions (pro-rated)
+        const perDayPF = salary.pf / daysInMonth
+        const earnedPF = Math.round(perDayPF * finalPayableDays)
+        const earnedProfTax = finalPayableDays >= 20 ? salary.profTax : 0
 
-        // Base Net (Before LoP)
-        const baseNet = grossSalary - (pf + profTax)
+        const totalDeductions = earnedPF + earnedProfTax
+        const netPay = earnedGross - totalDeductions
 
-        // Per Day Pay
-        const perDayPay = baseNet / daysInMonth
-
-        // Loss of Pay
-        const lossOfPay = Math.round(perDayPay * totalUnpaidDays)
-
-        // Final In-Hand
-        const netPay = Math.max(0, baseNet - lossOfPay)
+        // Loss of Pay calculation
+        const fullMonthNet = grossEarnings - salary.pf - salary.profTax
+        const lossOfPay = fullMonthNet - netPay
 
         setBreakdown({
-            basic,
-            hra,
-            da,
-            pf,
-            profTax,
-            totalDeductions: pf + profTax + lossOfPay,
+            grossEarnings,
+            earnedGross,
+            earnedPF,
+            earnedProfTax,
+            totalDeductions,
             netPay,
-            lossOfPay,
-            payableDays
+            payableDays: finalPayableDays,
+            totalAbsent,
+            lossOfPay
         })
     }
 
-    const handleSliderChange = (e) => {
-        const { name, value } = e.target
-        setSliders(prev => ({ ...prev, [name]: parseInt(value) }))
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="text-center">
+                    <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
+                    <p className="text-slate-500">Loading Simulator...</p>
+                </div>
+            </div>
+        )
     }
 
-    if (loading) return <div className="p-12 text-center text-slate-500">Loading Simulator...</div>
+    if (!salary) {
+        return (
+            <div className="text-center p-12">
+                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <p className="text-slate-600">Failed to load salary data</p>
+            </div>
+        )
+    }
 
     return (
-        <div className="max-w-5xl mx-auto space-y-8">
-            <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-blue-100 text-blue-600 rounded-xl">
+        <div className="max-w-6xl mx-auto space-y-8">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl shadow-lg">
                     <Calculator className="w-8 h-8" />
                 </div>
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900">Salary Simulator</h1>
-                    <p className="text-slate-500">Estimate your in-hand salary for {baseStats.monthName}</p>
+                    <p className="text-slate-500">Estimate your in-hand salary for {currentStats.monthName}</p>
                 </div>
+            </div>
+
+            {/* Current Month Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <StatsCard label="Present Days" value={currentStats.presentDays} color="green" />
+                <StatsCard label="Weekends (Paid)" value={currentStats.weekends} color="slate" />
+                <StatsCard label="Approved Leaves" value={currentStats.approvedLeaves} color="purple" />
+                <StatsCard label="Absent Days" value={currentStats.absentDays} color="red" />
             </div>
 
             <div className="grid lg:grid-cols-3 gap-8">
-                {/* Left: Inputs */}
+                {/* Left: Simulation Controls */}
                 <div className="lg:col-span-2 space-y-6">
-                    {/* Salary Input Card */}
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <label className="block text-sm font-bold text-slate-700 mb-2">Monthly Gross Salary (₹)</label>
-                        <div className="relative">
-                            <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-                            <input
-                                type="number"
-                                value={grossSalary}
-                                onChange={(e) => setGrossSalary(parseFloat(e.target.value) || 0)}
-                                className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-xl font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                            />
+                    {/* Current Salary Display */}
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl border border-blue-200">
+                        <h3 className="font-bold text-lg text-slate-800 mb-4">Your Monthly CTC</h3>
+                        <div className="text-4xl font-bold text-blue-600 mb-4">
+                            ₹ {salary.wage.toLocaleString()}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div className="bg-white/60 p-3 rounded-lg">
+                                <p className="text-slate-600">Basic (50%)</p>
+                                <p className="font-bold text-slate-800">₹ {salary.basic.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white/60 p-3 rounded-lg">
+                                <p className="text-slate-600">HRA (50% of Basic)</p>
+                                <p className="font-bold text-slate-800">₹ {salary.hra.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white/60 p-3 rounded-lg">
+                                <p className="text-slate-600">Special Allowance</p>
+                                <p className="font-bold text-slate-800">₹ {salary.stdAllowance.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white/60 p-3 rounded-lg">
+                                <p className="text-slate-600">Other Allowances</p>
+                                <p className="font-bold text-slate-800">₹ {((salary.performanceBonus || 0) + (salary.lta || 0) + (salary.fixedAllowance || 0)).toLocaleString()}</p>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Sliders Card */}
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-8">
-                        <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                            <Sliders className="w-5 h-5 text-blue-500" />
-                            Project Additional Leaves
+                    {/* Simulation Slider */}
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2">
+                            <TrendingDown className="w-5 h-5 text-red-500" />
+                            Simulate Additional Absences
                         </h3>
 
-                        {/* Unpaid Leaves Slider */}
-                        <div className="space-y-4">
-                            <div className="flex justify-between">
-                                <label className="font-medium text-slate-700">Extra Unpaid Leaves</label>
-                                <span className="font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-lg">{sliders.unpaidLeaves} Days</span>
+                        <div className="space-y-6">
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <label className="font-medium text-slate-700">Project Additional Absent Days</label>
+                                    <span className="text-2xl font-bold text-red-600 bg-red-50 px-4 py-2 rounded-lg">
+                                        {additionalAbsent} Days
+                                    </span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max={Math.min(20, currentStats.daysInMonth - currentStats.absentDays)}
+                                    step="1"
+                                    value={additionalAbsent}
+                                    onChange={(e) => setAdditionalAbsent(parseInt(e.target.value))}
+                                    className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-red-600"
+                                />
+                                <div className="flex justify-between text-xs text-slate-500">
+                                    <span>0 Days</span>
+                                    <span>Max: {Math.min(20, currentStats.daysInMonth - currentStats.absentDays)} Days</span>
+                                </div>
                             </div>
-                            <input
-                                type="range"
-                                name="unpaidLeaves"
-                                min="0"
-                                max="15"
-                                step="1"
-                                value={sliders.unpaidLeaves}
-                                onChange={handleSliderChange}
-                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                            />
-                            <p className="text-xs text-slate-400">
-                                This will directly simulate deduction (LOP). You have already taken <span className="font-bold text-slate-700">{baseStats.unpaidLeavesTaken}</span> unpaid/absent days so far.
-                            </p>
-                        </div>
 
-                        {/* Paid Leaves Slider */}
-                        <div className="space-y-4">
-                            <div className="flex justify-between">
-                                <label className="font-medium text-slate-700">Extra Paid Leaves</label>
-                                <span className="font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-lg">{sliders.paidLeaves} Days</span>
+                            <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl">
+                                <div className="flex items-start gap-3">
+                                    <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                                    <div className="text-sm text-amber-800">
+                                        <p className="font-semibold mb-1">How it works:</p>
+                                        <ul className="list-disc list-inside space-y-1 text-xs">
+                                            <li>Slide to project additional absent days</li>
+                                            <li>Your net salary updates in real-time</li>
+                                            <li>Calculation matches exact payroll system</li>
+                                            <li>Absent days = Loss of Pay (LOP)</li>
+                                        </ul>
+                                    </div>
+                                </div>
                             </div>
-                            <input
-                                type="range"
-                                name="paidLeaves"
-                                min="0"
-                                max="10"
-                                step="1"
-                                value={sliders.paidLeaves}
-                                onChange={handleSliderChange}
-                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-green-600"
-                            />
-                            <p className="text-xs text-slate-400">Assumes you have balance. Does not affect salary unless balance is 0.</p>
-                        </div>
 
-                        {/* Sick Leaves Slider */}
-                        <div className="space-y-4">
-                            <div className="flex justify-between">
-                                <label className="font-medium text-slate-700">Sick Leaves</label>
-                                <span className="font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-lg">{sliders.sickLeaves} Days</span>
+                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-200">
+                                <div className="text-center p-3 bg-slate-50 rounded-lg">
+                                    <p className="text-xs text-slate-600 mb-1">Currently Absent</p>
+                                    <p className="text-2xl font-bold text-slate-800">{currentStats.absentDays}</p>
+                                </div>
+                                <div className="text-center p-3 bg-red-50 rounded-lg">
+                                    <p className="text-xs text-red-600 mb-1">Total If Absent</p>
+                                    <p className="text-2xl font-bold text-red-600">{breakdown.totalAbsent}</p>
+                                </div>
                             </div>
-                            <input
-                                type="range"
-                                name="sickLeaves"
-                                min="0"
-                                max="10"
-                                step="1"
-                                value={sliders.sickLeaves}
-                                onChange={handleSliderChange}
-                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                            />
-                            <p className="text-xs text-slate-400">Usually paid.</p>
                         </div>
                     </div>
                 </div>
 
-                {/* Right: Breakdown */}
+                {/* Right: Salary Breakdown */}
                 <div className="lg:col-span-1">
-                    <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-xl sticky top-6">
+                    <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 rounded-3xl shadow-2xl sticky top-6">
+                        {/* Net Pay Display */}
                         <div className="mb-6 pb-6 border-b border-white/10 text-center">
-                            <p className="text-blue-300 font-medium mb-1">Estimated In-Hand Salary</p>
-                            <div className="text-4xl font-bold">₹ {breakdown.netPay.toLocaleString()}</div>
-                            <div className="text-sm text-slate-400 mt-2">
-                                for {breakdown.payableDays} Payable Days
+                            <p className="text-blue-300 font-medium mb-2">Estimated Net Pay</p>
+                            <div className="text-5xl font-bold text-white mb-2">
+                                ₹ {breakdown.netPay.toLocaleString()}
+                            </div>
+                            <div className="text-sm text-slate-400">
+                                for {breakdown.payableDays} payable days
                             </div>
                         </div>
 
-                        <div className="space-y-4 text-sm">
+                        {/* Earnings Breakdown */}
+                        <div className="space-y-3 text-sm mb-6">
+                            <p className="font-semibold text-green-300 mb-2">Earnings</p>
                             <div className="flex justify-between text-slate-300">
-                                <span>Basic Pay (50%)</span>
-                                <span>₹ {breakdown.basic.toLocaleString()}</span>
+                                <span>Gross Earnings</span>
+                                <span className="font-semibold">₹ {breakdown.grossEarnings.toLocaleString()}</span>
                             </div>
-                            <div className="flex justify-between text-slate-300">
-                                <span>HRA (20%)</span>
-                                <span>₹ {breakdown.hra.toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between text-slate-300">
-                                <span>DA (10%)</span>
-                                <span>₹ {breakdown.da.toLocaleString()}</span>
-                            </div>
-
-                            <div className="h-px bg-white/10 my-4" />
-
-                            <div className="flex justify-between text-red-300">
-                                <span>PF (12% of Basic)</span>
-                                <span>- ₹ {breakdown.pf.toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between text-red-300">
-                                <span>Prof. Tax</span>
-                                <span>- ₹ {breakdown.profTax.toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between font-bold text-red-400 bg-red-500/10 p-2 rounded-lg">
-                                <span>Loss of Pay (LOP)</span>
-                                <span>- ₹ {breakdown.lossOfPay.toLocaleString()}</span>
+                            <div className="flex justify-between text-green-300 font-medium bg-green-500/10 p-2 rounded-lg">
+                                <span>Earned This Month</span>
+                                <span>₹ {breakdown.earnedGross.toLocaleString()}</span>
                             </div>
                         </div>
 
-                        <div className="mt-8 flex items-start gap-3 bg-white/5 p-4 rounded-xl text-xs text-slate-400">
-                            <AlertCircle className="w-4 h-4 shrink-0 text-blue-400" />
-                            <p>This is a simulation. Actual tax deductions (TDS) and policies might vary. LOP is calculated based on Base Net / Days in Month.</p>
+                        {/* Deductions Breakdown */}
+                        <div className="space-y-3 text-sm mb-6 pb-6 border-b border-white/10">
+                            <p className="font-semibold text-red-300 mb-2">Deductions</p>
+                            <div className="flex justify-between text-slate-300">
+                                <span>EPF (12% of Basic)</span>
+                                <span>- ₹ {breakdown.earnedPF.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between text-slate-300">
+                                <span>Professional Tax</span>
+                                <span>- ₹ {breakdown.earnedProfTax.toLocaleString()}</span>
+                            </div>
+                            {breakdown.lossOfPay > 0 && (
+                                <div className="flex justify-between font-bold text-red-400 bg-red-500/20 p-3 rounded-lg border border-red-500/30">
+                                    <span>Loss of Pay (LOP)</span>
+                                    <span>- ₹ {breakdown.lossOfPay.toLocaleString()}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Summary */}
+                        <div className="space-y-2 text-sm">
+                            <div className="flex justify-between text-slate-400">
+                                <span>Total Days in Month</span>
+                                <span>{currentStats.daysInMonth}</span>
+                            </div>
+                            <div className="flex justify-between text-slate-400">
+                                <span>Weekends (Auto-paid)</span>
+                                <span>{currentStats.weekends}</span>
+                            </div>
+                            <div className="flex justify-between text-green-300 font-medium">
+                                <span>Payable Days</span>
+                                <span>{breakdown.payableDays}</span>
+                            </div>
+                            <div className="flex justify-between text-red-300 font-medium">
+                                <span>Total Unpaid Days</span>
+                                <span>{currentStats.daysInMonth - breakdown.payableDays}</span>
+                            </div>
+                        </div>
+
+                        {/* Disclaimer */}
+                        <div className="mt-6 pt-6 border-t border-white/10">
+                            <div className="flex items-start gap-3 text-xs text-slate-400">
+                                <AlertCircle className="w-4 h-4 shrink-0 text-blue-400 mt-0.5" />
+                                <p>This simulator uses your actual salary structure and matches the exact payroll calculation system.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+    )
+}
+
+function StatsCard({ label, value, color }) {
+    const colors = {
+        green: 'bg-green-50 border-green-200 text-green-600',
+        red: 'bg-red-50 border-red-200 text-red-600',
+        purple: 'bg-purple-50 border-purple-200 text-purple-600',
+        slate: 'bg-slate-50 border-slate-200 text-slate-600'
+    }
+
+    return (
+        <div className={`${colors[color]} p-4 rounded-xl border`}>
+            <p className="text-xs font-medium opacity-75 mb-1">{label}</p>
+            <p className="text-2xl font-bold">{value}</p>
         </div>
     )
 }
