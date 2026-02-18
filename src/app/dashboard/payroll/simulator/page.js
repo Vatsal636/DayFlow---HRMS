@@ -16,7 +16,7 @@ export default function SalarySimulatorPage() {
         presentDays: 0,
         lateDays: 0,
         absentDays: 0,
-        approvedLeaveCount: 0, // Leave requests count
+        approvedLeaveDays: 0, // Actual leave days taken
         weekendsSoFar: 0, // Weekends occurred so far
         totalWeekendsInMonth: 0, // Total weekends in month
         actualPayableDays: 0, // From payroll formula
@@ -158,7 +158,7 @@ export default function SalarySimulatorPage() {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <StatsCard label="Present (On-time)" value={currentStats.presentDays} color="green" />
                 <StatsCard label="Late Check-ins" value={currentStats.lateDays} color="orange" />
-                <StatsCard label="Leave Requests" value={currentStats.approvedLeaveCount} color="purple" />
+                <StatsCard label="Leave Days Taken" value={currentStats.approvedLeaveDays} color="purple" />
                 <StatsCard label="Absent Days" value={currentStats.absentDays} color="red" />
                 <StatsCard label="Weekends So Far" value={currentStats.weekendsSoFar} color="slate" />
             </div>
@@ -172,6 +172,36 @@ export default function SalarySimulatorPage() {
                         <p className="text-blue-700 mt-1">You have <span className="font-bold">{currentStats.remainingDays} days remaining</span> in this month to project absences.</p>
                     </div>
                 </div>
+            </div>
+
+            {/* Current Calculation Breakdown */}
+            <div className="bg-green-50 border border-green-200 p-4 rounded-xl">
+                <h3 className="text-sm font-bold text-green-900 mb-3">📊 Current Payable Days Breakdown:</h3>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                    <div className="text-center">
+                        <p className="text-green-600 font-medium">Present</p>
+                        <p className="text-2xl font-bold text-green-700">{currentStats.presentDays}</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-orange-600 font-medium">+ Late</p>
+                        <p className="text-2xl font-bold text-orange-700">{currentStats.lateDays}</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-purple-600 font-medium">+ Leaves</p>
+                        <p className="text-2xl font-bold text-purple-700">{currentStats.approvedLeaveDays}</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-slate-600 font-medium">+ Weekends</p>
+                        <p className="text-2xl font-bold text-slate-700">{currentStats.totalWeekendsInMonth}</p>
+                    </div>
+                    <div className="text-center bg-green-100 rounded-lg p-2">
+                        <p className="text-green-800 font-bold">= Total</p>
+                        <p className="text-2xl font-bold text-green-900">{currentStats.actualPayableDays}</p>
+                    </div>
+                </div>
+                <p className="text-xs text-green-700 mt-3 text-center">
+                    <strong>Note:</strong> {currentStats.absentDays} absent days are automatically excluded (not paid)
+                </p>
             </div>
 
             <div className="grid lg:grid-cols-3 gap-8">
@@ -240,11 +270,12 @@ export default function SalarySimulatorPage() {
                                         <p className="font-semibold mb-1">How it works:</p>
                                         <ul className="list-disc list-inside space-y-1 text-xs">
                                             <li>Shows your actual attendance status till today</li>
-                                            <li>All weekends in month ({currentStats.totalWeekendsInMonth} days) are auto-paid</li>
-                                            <li>Slider limited to remaining days in month ({currentStats.remainingDays} days left)</li>
-                                            <li>Project future absences to see salary impact</li>
+                                            <li>Current calculation: Present + Late + Leave Days + Weekends</li>
+                                            <li>Absent days are automatically excluded (Loss of Pay)</li>
+                                            <li>All {currentStats.totalWeekendsInMonth} weekends in month are auto-paid</li>
                                             <li>Late check-ins are still paid (no deduction)</li>
-                                            <li>Absent days result in Loss of Pay (LOP)</li>
+                                            <li>Slider projects FUTURE absences to see additional impact</li>
+                                            <li>Real-time net pay calculation based on projection</li>
                                         </ul>
                                     </div>
                                 </div>
@@ -330,8 +361,8 @@ export default function SalarySimulatorPage() {
                                 <span>{currentStats.lateDays}</span>
                             </div>
                             <div className="flex justify-between text-purple-300">
-                                <span>Leave Requests (Count)</span>
-                                <span>{currentStats.approvedLeaveCount}</span>
+                                <span>Leave Days Taken</span>
+                                <span>{currentStats.approvedLeaveDays}</span>
                             </div>
                             <div className="flex justify-between text-slate-400">
                                 <span>Weekends So Far</span>
@@ -365,14 +396,9 @@ export default function SalarySimulatorPage() {
 
                         {/* Disclaimer */}
                         <div className="mt-6 pt-6 border-t border-white/10">
-                            <div className="flex items-start gap-3 text-xs text-slate-400 mb-3">
+                            <div className="flex items-start gap-3 text-xs text-slate-400">
                                 <AlertCircle className="w-4 h-4 shrink-0 text-blue-400 mt-0.5" />
-                                <p>This simulator uses your actual salary structure and matches the EXACT payroll calculation formula.</p>
-                            </div>
-                            <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg">
-                                <p className="text-xs text-amber-300">
-                                    <strong>Note:</strong> Payroll counts leave REQUESTS (not individual days). If you have 2 leave requests covering 5 days, it counts as 2, not 5.
-                                </p>
+                                <p>This simulator uses your actual salary structure and matches the EXACT payroll calculation formula. Counts actual leave DAYS taken, not requests.</p>
                             </div>
                         </div>
                     </div>

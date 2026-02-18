@@ -108,17 +108,32 @@ export async function POST(request) {
                 if (dayOfWeek === 0 || dayOfWeek === 6) weekends++
             }
 
-            // Count approved leaves
-            const approvedLeaves = await prisma.leaveRequest.count({
+            // Count approved leave DAYS (not requests) - calculate actual days in month
+            const approvedLeaveRequests = await prisma.leaveRequest.findMany({
                 where: {
                     userId: emp.id,
                     status: 'APPROVED',
                     startDate: { lte: endDate },
                     endDate: { gte: startDate }
+                },
+                select: {
+                    startDate: true,
+                    endDate: true
                 }
             })
 
-            const payableDays = Math.min(attendanceCount + weekends + approvedLeaves, daysInMonth)
+            // Calculate actual number of leave days in current month
+            let approvedLeaveDays = 0
+            approvedLeaveRequests.forEach(leave => {
+                const leaveStart = new Date(leave.startDate) > startDate ? new Date(leave.startDate) : startDate
+                const leaveEnd = new Date(leave.endDate) < endDate ? new Date(leave.endDate) : endDate
+                
+                // Count days between leaveStart and leaveEnd (inclusive)
+                const daysDiff = Math.floor((leaveEnd - leaveStart) / (1000 * 60 * 60 * 24)) + 1
+                approvedLeaveDays += Math.max(0, daysDiff)
+            })
+
+            const payableDays = Math.min(attendanceCount + weekends + approvedLeaveDays, daysInMonth)
 
             // 4. Calculate Payout using Industry Standard Formula
             // Gross Salary = Basic + HRA + Allowances

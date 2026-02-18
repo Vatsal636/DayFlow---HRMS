@@ -102,14 +102,29 @@ export async function GET(request) {
             }
         })
 
-        // Count approved leave REQUESTS (NOT days) - matches payroll bug
-        const approvedLeaveCount = await prisma.leaveRequest.count({
+        // Count approved leave DAYS (not requests) - calculate actual days up to today
+        const approvedLeaveRequests = await prisma.leaveRequest.findMany({
             where: {
                 userId,
                 status: 'APPROVED',
-                startDate: { lte: endDate },
+                startDate: { lte: today },
                 endDate: { gte: startDate }
+            },
+            select: {
+                startDate: true,
+                endDate: true
             }
+        })
+
+        // Calculate actual number of leave days in current month up to today
+        let approvedLeaveDays = 0
+        approvedLeaveRequests.forEach(leave => {
+            const leaveStart = new Date(leave.startDate) > startDate ? new Date(leave.startDate) : startDate
+            const leaveEnd = new Date(leave.endDate) < today ? new Date(leave.endDate) : today
+            
+            // Count days between leaveStart and leaveEnd (inclusive)
+            const daysDiff = Math.floor((leaveEnd - leaveStart) / (1000 * 60 * 60 * 24)) + 1
+            approvedLeaveDays += Math.max(0, daysDiff)
         })
 
         // Count weekends in FULL month (payroll counts all weekends, not just past ones)
@@ -132,9 +147,9 @@ export async function GET(request) {
         const remainingDays = daysInMonth - currentDay
 
         // Calculate ACTUAL payable days using EXACT payroll formula
-        // Formula: attendanceCount + weekends + approvedLeaves (REQUESTS, not days!)
+        // Formula: attendanceCount + weekends + approvedLeaveDays
         const attendanceCount = presentDays + lateDays
-        const actualPayableDays = Math.min(attendanceCount + totalWeekendsInMonth + approvedLeaveCount, daysInMonth)
+        const actualPayableDays = Math.min(attendanceCount + totalWeekendsInMonth + approvedLeaveDays, daysInMonth)
 
         // Calculate leave balance (Annual limit 12 - approved leaves this year)
         const totalApprovedLeavesThisYear = await prisma.leaveRequest.count({
@@ -165,7 +180,7 @@ export async function GET(request) {
                 presentDays,
                 lateDays,
                 absentDays,
-                approvedLeaveCount, // Number of leave requests (matches payroll)
+                approvedLeaveDays, // Actual leave days taken
                 weekendsSoFar, // Weekends that have occurred
                 totalWeekendsInMonth, // Total weekends in month (used in calculation)
                 actualPayableDays, // Actual payable days from payroll formula
