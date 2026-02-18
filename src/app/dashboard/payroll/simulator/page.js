@@ -1,9 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Calculator, DollarSign, TrendingDown, AlertCircle, RefreshCw, Calendar, Users } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Calculator, DollarSign, TrendingDown, AlertCircle, RefreshCw, Calendar, Users, ArrowLeft } from "lucide-react"
 
 export default function SalarySimulatorPage() {
+    const router = useRouter()
     const [loading, setLoading] = useState(true)
 
     // Salary Structure from API
@@ -131,6 +133,15 @@ export default function SalarySimulatorPage() {
 
     return (
         <div className="max-w-6xl mx-auto space-y-8">
+            {/* Back Button */}
+            <button
+                onClick={() => router.push('/dashboard/payroll')}
+                className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors group"
+            >
+                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                <span className="font-medium">Back to Payroll</span>
+            </button>
+
             {/* Header */}
             <div className="flex items-center gap-4">
                 <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl shadow-lg">
