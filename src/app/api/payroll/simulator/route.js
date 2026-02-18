@@ -11,13 +11,13 @@ export async function GET(request) {
         const userId = payload.id
 
         const now = new Date()
-        now.setHours(0, 0, 0, 0) // Set to start of today
         const month = now.getMonth()
         const year = now.getFullYear()
 
         const startDate = new Date(year, month, 1)
         const endDate = new Date(year, month + 1, 0)
         const daysInMonth = endDate.getDate()
+        const currentDay = now.getDate()
 
         // Fetch Salary Structure
         const user = await prisma.user.findUnique({
@@ -46,35 +46,48 @@ export async function GET(request) {
             }
         }
 
-        // Fetch Current Month Attendance Stats (up to today only)
+        // Fetch Current Month Attendance Stats
+        // Match EXACT payroll logic: count PRESENT/HALF_DAY status records
         const attendanceRecords = await prisma.attendance.findMany({
             where: {
                 userId,
                 date: {
                     gte: startDate,
-                    lte: now // Only up to today, not end of month
+                    lte: endDate // Query full month like payroll does
                 },
                 status: { in: ['PRESENT', 'HALF_DAY'] }
-            }
+            },
+            select: {
+                checkIn: true,
+                date: true
+            },
+            orderBy: { date: 'asc' }
         })
 
-        // Count present days (on-time)
+        // Count present days (on-time) and late days
+        // Only count records up to TODAY
         let presentDays = 0
         let lateDays = 0
+        const today = new Date()
+        today.setHours(23, 59, 59, 999) // End of today
         
         attendanceRecords.forEach(record => {
-            if (record.checkIn) {
-                const checkIn = new Date(record.checkIn)
-                const threshold = new Date(record.checkIn)
-                threshold.setHours(9, 30, 0, 0)
-                
-                if (checkIn > threshold) {
-                    lateDays++
+            const recordDate = new Date(record.date)
+            // Only count if record is today or earlier
+            if (recordDate <= today) {
+                if (record.checkIn) {
+                    const checkIn = new Date(record.checkIn)
+                    const threshold = new Date(record.checkIn)
+                    threshold.setHours(9, 30, 0, 0)
+                    
+                    if (checkIn > threshold) {
+                        lateDays++
+                    } else {
+                        presentDays++
+                    }
                 } else {
-                    presentDays++
+                    presentDays++ // No checkIn time, count as present
                 }
-            } else {
-                presentDays++ // No checkIn time, count as present
             }
         })
 
@@ -83,47 +96,23 @@ export async function GET(request) {
                 userId,
                 date: {
                     gte: startDate,
-                    lte: now // Only up to today
+                    lte: today
                 },
                 status: 'ABSENT'
             }
         })
 
-        // Count approved leave DAYS (not requests) for current month up to today
-        const approvedLeaveRequests = await prisma.leaveRequest.findMany({
+        // Count approved leave REQUESTS (NOT days) - matches payroll bug
+        const approvedLeaveCount = await prisma.leaveRequest.count({
             where: {
                 userId,
                 status: 'APPROVED',
-                startDate: { lte: now }, // Started before or on today
-                endDate: { gte: startDate } // Ends after or on month start
-            },
-            select: {
-                startDate: true,
-                endDate: true
+                startDate: { lte: endDate },
+                endDate: { gte: startDate }
             }
         })
 
-        // Calculate actual number of leave days in current month up to today
-        let approvedLeaves = 0
-        approvedLeaveRequests.forEach(leave => {
-            const leaveStart = new Date(leave.startDate) > startDate ? new Date(leave.startDate) : startDate
-            const leaveEnd = new Date(leave.endDate) < now ? new Date(leave.endDate) : now
-            
-            // Count days between leaveStart and leaveEnd (inclusive)
-            const daysDiff = Math.floor((leaveEnd - leaveStart) / (1000 * 60 * 60 * 24)) + 1
-            approvedLeaves += Math.max(0, daysDiff)
-        })
-
-        // Count weekends in current month (only up to today)
-        let weekends = 0
-        const today = now.getDate()
-        for (let d = 1; d <= today; d++) {
-            const date = new Date(year, month, d)
-            const dayOfWeek = date.getDay()
-            if (dayOfWeek === 0 || dayOfWeek === 6) weekends++
-        }
-
-        // Also get total weekends in full month for informational purposes
+        // Count weekends in FULL month (payroll counts all weekends, not just past ones)
         let totalWeekendsInMonth = 0
         for (let d = 1; d <= daysInMonth; d++) {
             const date = new Date(year, month, d)
@@ -131,9 +120,21 @@ export async function GET(request) {
             if (dayOfWeek === 0 || dayOfWeek === 6) totalWeekendsInMonth++
         }
 
+        // Also count weekends that have occurred so far for display
+        let weekendsSoFar = 0
+        for (let d = 1; d <= currentDay; d++) {
+            const date = new Date(year, month, d)
+            const dayOfWeek = date.getDay()
+            if (dayOfWeek === 0 || dayOfWeek === 6) weekendsSoFar++
+        }
+
         // Calculate current day and remaining days
-        const currentDay = new Date().getDate() // Use actual current time
         const remainingDays = daysInMonth - currentDay
+
+        // Calculate ACTUAL payable days using EXACT payroll formula
+        // Formula: attendanceCount + weekends + approvedLeaves (REQUESTS, not days!)
+        const attendanceCount = presentDays + lateDays
+        const actualPayableDays = Math.min(attendanceCount + totalWeekendsInMonth + approvedLeaveCount, daysInMonth)
 
         // Calculate leave balance (Annual limit 12 - approved leaves this year)
         const totalApprovedLeavesThisYear = await prisma.leaveRequest.count({
@@ -164,9 +165,10 @@ export async function GET(request) {
                 presentDays,
                 lateDays,
                 absentDays,
-                approvedLeaves,
-                weekends, // Weekends that have occurred so far
-                totalWeekendsInMonth, // Total weekends in full month
+                approvedLeaveCount, // Number of leave requests (matches payroll)
+                weekendsSoFar, // Weekends that have occurred
+                totalWeekendsInMonth, // Total weekends in month (used in calculation)
+                actualPayableDays, // Actual payable days from payroll formula
                 daysInMonth,
                 currentDay,
                 remainingDays,
