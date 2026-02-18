@@ -17,7 +17,8 @@ export default function SalarySimulatorPage() {
         lateDays: 0,
         absentDays: 0,
         approvedLeaves: 0,
-        weekends: 0,
+        weekends: 0, // Weekends occurred so far
+        totalWeekendsInMonth: 0, // Total weekends in month
         daysInMonth: 30,
         currentDay: 1,
         remainingDays: 29,
@@ -66,15 +67,16 @@ export default function SalarySimulatorPage() {
     }, [salary, currentStats, additionalAbsent])
 
     const calculateSalary = () => {
-        const { presentDays, lateDays, absentDays, approvedLeaves, weekends, daysInMonth } = currentStats
+        const { presentDays, lateDays, absentDays, approvedLeaves, totalWeekendsInMonth, daysInMonth } = currentStats
 
         // Total absent days after projection
         const totalAbsent = absentDays + additionalAbsent
 
-        // Payable Days = Present + Late (still paid) + Weekends + Approved Leaves
+        // Payable Days = Present + Late (still paid) + Weekends (full month auto-paid) + Approved Leaves
         // Late check-ins are still paid, just marked late
         // Then subtract projected additional absent days
-        const basePayableDays = presentDays + lateDays + weekends + approvedLeaves
+        // Note: We use totalWeekendsInMonth because weekends are auto-paid for entire month
+        const basePayableDays = presentDays + lateDays + totalWeekendsInMonth + approvedLeaves
         const finalPayableDays = Math.max(0, basePayableDays - additionalAbsent)
 
         // Gross Salary Calculation (Exact match with payroll structure)
@@ -159,7 +161,7 @@ export default function SalarySimulatorPage() {
                 <StatsCard label="Late Check-ins" value={currentStats.lateDays} color="orange" />
                 <StatsCard label="Approved Leaves" value={currentStats.approvedLeaves} color="purple" />
                 <StatsCard label="Absent Days" value={currentStats.absentDays} color="red" />
-                <StatsCard label="Weekends (Paid)" value={currentStats.weekends} color="slate" />
+                <StatsCard label="Weekends So Far" value={currentStats.weekends} color="slate" />
             </div>
 
             {/* Current Status Summary */}
@@ -239,6 +241,7 @@ export default function SalarySimulatorPage() {
                                         <p className="font-semibold mb-1">How it works:</p>
                                         <ul className="list-disc list-inside space-y-1 text-xs">
                                             <li>Shows your actual attendance status till today</li>
+                                            <li>All weekends in month ({currentStats.totalWeekendsInMonth} days) are auto-paid</li>
                                             <li>Slider limited to remaining days in month ({currentStats.remainingDays} days left)</li>
                                             <li>Project future absences to see salary impact</li>
                                             <li>Late check-ins are still paid (no deduction)</li>
@@ -332,8 +335,12 @@ export default function SalarySimulatorPage() {
                                 <span>{currentStats.approvedLeaves}</span>
                             </div>
                             <div className="flex justify-between text-slate-400">
-                                <span>Weekends (Auto-paid)</span>
+                                <span>Weekends So Far</span>
                                 <span>{currentStats.weekends}</span>
+                            </div>
+                            <div className="flex justify-between text-slate-300 font-medium">
+                                <span>Total Weekends (Auto-paid)</span>
+                                <span>{currentStats.totalWeekendsInMonth}</span>
                             </div>
                             <div className="flex justify-between text-red-300">
                                 <span>Actual Absent Days</span>

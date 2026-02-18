@@ -11,6 +11,7 @@ export async function GET(request) {
         const userId = payload.id
 
         const now = new Date()
+        now.setHours(0, 0, 0, 0) // Set to start of today
         const month = now.getMonth()
         const year = now.getFullYear()
 
@@ -45,13 +46,13 @@ export async function GET(request) {
             }
         }
 
-        // Fetch Current Month Attendance Stats
+        // Fetch Current Month Attendance Stats (up to today only)
         const attendanceRecords = await prisma.attendance.findMany({
             where: {
                 userId,
                 date: {
                     gte: startDate,
-                    lte: endDate
+                    lte: now // Only up to today, not end of month
                 },
                 status: { in: ['PRESENT', 'HALF_DAY'] }
             }
@@ -82,32 +83,56 @@ export async function GET(request) {
                 userId,
                 date: {
                     gte: startDate,
-                    lte: endDate
+                    lte: now // Only up to today
                 },
                 status: 'ABSENT'
             }
         })
 
-        // Count approved leaves for current month
-        const approvedLeaves = await prisma.leaveRequest.count({
+        // Count approved leave DAYS (not requests) for current month up to today
+        const approvedLeaveRequests = await prisma.leaveRequest.findMany({
             where: {
                 userId,
                 status: 'APPROVED',
-                startDate: { lte: endDate },
-                endDate: { gte: startDate }
+                startDate: { lte: now }, // Started before or on today
+                endDate: { gte: startDate } // Ends after or on month start
+            },
+            select: {
+                startDate: true,
+                endDate: true
             }
         })
 
-        // Count weekends in current month
+        // Calculate actual number of leave days in current month up to today
+        let approvedLeaves = 0
+        approvedLeaveRequests.forEach(leave => {
+            const leaveStart = new Date(leave.startDate) > startDate ? new Date(leave.startDate) : startDate
+            const leaveEnd = new Date(leave.endDate) < now ? new Date(leave.endDate) : now
+            
+            // Count days between leaveStart and leaveEnd (inclusive)
+            const daysDiff = Math.floor((leaveEnd - leaveStart) / (1000 * 60 * 60 * 24)) + 1
+            approvedLeaves += Math.max(0, daysDiff)
+        })
+
+        // Count weekends in current month (only up to today)
         let weekends = 0
-        for (let d = 1; d <= daysInMonth; d++) {
+        const today = now.getDate()
+        for (let d = 1; d <= today; d++) {
             const date = new Date(year, month, d)
             const dayOfWeek = date.getDay()
             if (dayOfWeek === 0 || dayOfWeek === 6) weekends++
         }
 
+        // Also get total weekends in full month for informational purposes
+        let totalWeekendsInMonth = 0
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(year, month, d)
+            const dayOfWeek = date.getDay()
+            if (dayOfWeek === 0 || dayOfWeek === 6) totalWeekendsInMonth++
+        }
+
         // Calculate current day and remaining days
-        const currentDay = now.getDate()
+        const currentDay = new Date().getDate() // Use actual current time
         const remainingDays = daysInMonth - currentDay
 
         // Calculate leave balance (Annual limit 12 - approved leaves this year)
@@ -140,7 +165,8 @@ export async function GET(request) {
                 lateDays,
                 absentDays,
                 approvedLeaves,
-                weekends,
+                weekends, // Weekends that have occurred so far
+                totalWeekendsInMonth, // Total weekends in full month
                 daysInMonth,
                 currentDay,
                 remainingDays,
