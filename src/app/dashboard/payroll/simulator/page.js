@@ -19,10 +19,11 @@ export default function SalarySimulatorPage() {
         approvedLeaveDays: 0, // Actual leave days taken
         weekendsSoFar: 0, // Weekends occurred so far
         totalWeekendsInMonth: 0, // Total weekends in month
-        actualPayableDays: 0, // From payroll formula
+        remainingWorkingDays: 0, // Working days remaining
+        estimatedPayableDays: 0, // Estimated with optimistic projection
         daysInMonth: 30,
         currentDay: 1,
-        remainingDays: 29,
+        remainingDaysInMonth: 29,
         monthName: 'Current Month'
     })
 
@@ -68,15 +69,12 @@ export default function SalarySimulatorPage() {
     }, [salary, currentStats, additionalAbsent])
 
     const calculateSalary = () => {
-        const { actualPayableDays, daysInMonth } = currentStats
+        const { estimatedPayableDays, daysInMonth } = currentStats
 
-        // Total absent days after projection
+        // Start with optimistic estimate (assumes remaining days as present)
+        // Then subtract projected additional absences from slider
+        const finalPayableDays = Math.max(0, estimatedPayableDays - additionalAbsent)
         const totalAbsent = currentStats.absentDays + additionalAbsent
-
-        // Use EXACT payroll formula
-        // actualPayableDays already calculated as: attendanceCount + weekends + leaveRequests
-        // Subtract projected additional absent days
-        const finalPayableDays = Math.max(0, actualPayableDays - additionalAbsent)
 
         // Gross Salary Calculation (Exact match with payroll structure)
         const grossEarnings = salary.basic + salary.hra + salary.stdAllowance + 
@@ -169,14 +167,14 @@ export default function SalarySimulatorPage() {
                     <Calendar className="w-5 h-5 text-blue-600" />
                     <div className="flex-1">
                         <p className="text-blue-900 font-medium">Today is Day {currentStats.currentDay} of {currentStats.daysInMonth} days in {currentStats.monthName}</p>
-                        <p className="text-blue-700 mt-1">You have <span className="font-bold">{currentStats.remainingDays} days remaining</span> in this month to project absences.</p>
+                        <p className="text-blue-700 mt-1">You have <span className="font-bold">{currentStats.remainingDaysInMonth} days remaining</span> ({currentStats.remainingWorkingDays} working days, assuming present)</p>
                     </div>
                 </div>
             </div>
 
             {/* Current Calculation Breakdown */}
             <div className="bg-green-50 border border-green-200 p-4 rounded-xl">
-                <h3 className="text-sm font-bold text-green-900 mb-3">📊 Current Payable Days Breakdown:</h3>
+                <h3 className="text-sm font-bold text-green-900 mb-3">📊 Estimated Payable Days (Optimistic Projection):</h3>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
                     <div className="text-center">
                         <p className="text-green-600 font-medium">Present</p>
@@ -191,16 +189,20 @@ export default function SalarySimulatorPage() {
                         <p className="text-2xl font-bold text-purple-700">{currentStats.approvedLeaveDays}</p>
                     </div>
                     <div className="text-center">
+                        <p className="text-blue-600 font-medium">+ Future</p>
+                        <p className="text-2xl font-bold text-blue-700">{currentStats.remainingWorkingDays}</p>
+                        <p className="text-[10px] text-blue-600">(assumed)</p>
+                    </div>
+                    <div className="text-center">
                         <p className="text-slate-600 font-medium">+ Weekends</p>
                         <p className="text-2xl font-bold text-slate-700">{currentStats.totalWeekendsInMonth}</p>
                     </div>
-                    <div className="text-center bg-green-100 rounded-lg p-2">
-                        <p className="text-green-800 font-bold">= Total</p>
-                        <p className="text-2xl font-bold text-green-900">{currentStats.actualPayableDays}</p>
-                    </div>
+                </div>
+                <div className="mt-3 text-center bg-green-100 rounded-lg p-2">
+                    <p className="text-green-800 font-bold text-sm">= Estimated Total: {currentStats.estimatedPayableDays} days</p>
                 </div>
                 <p className="text-xs text-green-700 mt-3 text-center">
-                    <strong>Note:</strong> {currentStats.absentDays} absent days are automatically excluded (not paid)
+                    <strong>Note:</strong> {currentStats.absentDays} absent days already excluded. Assumes you'll be present for remaining {currentStats.remainingWorkingDays} working days.
                 </p>
             </div>
 
@@ -251,7 +253,7 @@ export default function SalarySimulatorPage() {
                                 <input
                                     type="range"
                                     min="0"
-                                    max={currentStats.remainingDays}
+                                    max={currentStats.remainingWorkingDays}
                                     step="1"
                                     value={additionalAbsent}
                                     onChange={(e) => setAdditionalAbsent(parseInt(e.target.value))}
@@ -259,7 +261,7 @@ export default function SalarySimulatorPage() {
                                 />
                                 <div className="flex justify-between text-xs text-slate-500">
                                     <span>0 Days</span>
-                                    <span>Max: {currentStats.remainingDays} Days (Remaining in month)</span>
+                                    <span>Max: {currentStats.remainingWorkingDays} Days (Remaining working days)</span>
                                 </div>
                             </div>
 
@@ -267,15 +269,15 @@ export default function SalarySimulatorPage() {
                                 <div className="flex items-start gap-3">
                                     <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                                     <div className="text-sm text-amber-800">
-                                        <p className="font-semibold mb-1">How it works:</p>
+                                        <p className="font-semibold mb-1">How it works (Optimistic Projection):</p>
                                         <ul className="list-disc list-inside space-y-1 text-xs">
-                                            <li>Shows your actual attendance status till today</li>
-                                            <li>Current calculation: Present + Late + Leave Days + Weekends</li>
-                                            <li>Absent days are automatically excluded (Loss of Pay)</li>
-                                            <li>All {currentStats.totalWeekendsInMonth} weekends in month are auto-paid</li>
-                                            <li>Late check-ins are still paid (no deduction)</li>
-                                            <li>Slider projects FUTURE absences to see additional impact</li>
-                                            <li>Real-time net pay calculation based on projection</li>
+                                            <li>Shows your actual status till today (Day {currentStats.currentDay})</li>
+                                            <li>Assumes remaining {currentStats.remainingWorkingDays} working days as PRESENT</li>
+                                            <li>All {currentStats.totalWeekendsInMonth} weekends auto-paid (full month)</li>
+                                            <li>Estimated payable: {currentStats.estimatedPayableDays} days by default</li>
+                                            <li>Slider reduces from remaining working days (project absences)</li>
+                                            <li>If slider at 0: Best case (all remaining days present)</li>
+                                            <li>If slider at max: Worst case (absent all remaining days)</li>
                                         </ul>
                                     </div>
                                 </div>
@@ -374,8 +376,11 @@ export default function SalarySimulatorPage() {
                             </div>
                             <div className="h-px bg-white/20 my-3" />
                             <div className="flex justify-between text-blue-300">
-                                <span>Current Payable Days</span>
-                                <span>{currentStats.actualPayableDays}</span>
+                                <span>Estimated Payable</span>
+                                <span>{currentStats.estimatedPayableDays}</span>
+                            </div>
+                            <div className="flex justify-between text-blue-200 text-xs">
+                                <span className="italic">↳ Assumes {currentStats.remainingWorkingDays} future days present</span>
                             </div>
                             <div className="flex justify-between text-red-300">
                                 <span>Actual Absent Days</span>
