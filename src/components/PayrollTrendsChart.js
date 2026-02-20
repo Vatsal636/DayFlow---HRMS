@@ -36,17 +36,18 @@ export default function PayrollTrendsChart() {
     const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload && payload.length) {
             return (
-                <div className="bg-white p-4 border border-slate-200 rounded-lg shadow-lg">
-                    <p className="font-bold text-slate-900 mb-2">{label}</p>
+                <div className="bg-white p-4 border-2 border-slate-300 rounded-xl shadow-2xl">
+                    <p className="font-bold text-slate-900 mb-3 text-base">{label}</p>
                     {payload.map((entry, index) => (
-                        <div key={index} className="flex items-center justify-between gap-4 text-sm">
-                            <span style={{ color: entry.color }} className="font-medium">{entry.name}:</span>
-                            <span className="font-bold">₹{entry.value.toLocaleString()}</span>
+                        <div key={index} className="flex items-center justify-between gap-6 mb-2">
+                            <span className="font-semibold text-slate-700 text-sm">{entry.name}:</span>
+                            <span className="font-bold text-slate-900 text-base">₹{entry.value.toLocaleString()}</span>
                         </div>
                     ))}
                     {payload[0]?.payload?.payableDays && (
-                        <div className="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-600">
-                            Payable Days: {payload[0].payload.payableDays}
+                        <div className="mt-3 pt-2 border-t-2 border-slate-200">
+                            <span className="text-sm font-semibold text-slate-700">Payable Days: </span>
+                            <span className="text-sm font-bold text-slate-900">{payload[0].payload.payableDays}</span>
                         </div>
                     )}
                 </div>
@@ -72,19 +73,21 @@ export default function PayrollTrendsChart() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis 
                         dataKey="month" 
-                        stroke="#94a3b8" 
-                        fontSize={12}
+                        stroke="#475569" 
+                        fontSize={13}
+                        fontWeight={600}
                         tickLine={false}
                     />
                     <YAxis 
-                        stroke="#94a3b8" 
-                        fontSize={12}
+                        stroke="#475569" 
+                        fontSize={13}
+                        fontWeight={600}
                         tickLine={false}
                         tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend 
-                        wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }}
+                        wrapperStyle={{ fontSize: '13px', fontWeight: '600', paddingTop: '20px' }}
                         iconType="circle"
                     />
                     <Bar 
