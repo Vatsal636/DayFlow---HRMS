@@ -4,6 +4,10 @@ import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Clock, Calendar, ArrowRight, Sun, Trophy, Timer, AlertCircle, CheckCircle2 } from "lucide-react"
 import { useToast } from "@/components/Toast"
+import MonthlySummaryCards from "@/components/MonthlySummaryCards"
+import AttendanceTrendChart from "@/components/AttendanceTrendChart"
+import LeaveDistributionChart from "@/components/LeaveDistributionChart"
+import PayrollTrendsChart from "@/components/PayrollTrendsChart"
 
 function formatTime(ms) {
     if (ms < 0) ms = 0
@@ -327,6 +331,27 @@ export default function EmployeeDashboard() {
                             </div>
                         )
                     })}
+                </div>
+            </motion.div>
+
+            {/* Analytics Section */}
+            <motion.div variants={item} className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-slate-900">Analytics & Insights</h3>
+                    <p className="text-sm text-slate-500">Track your performance over time</p>
+                </div>
+
+                {/* Monthly Summary Cards */}
+                <MonthlySummaryCards />
+
+                {/* Charts Grid */}
+                <div className="grid lg:grid-cols-2 gap-6">
+                    <AttendanceTrendChart />
+                    <LeaveDistributionChart />
+                </div>
+
+                <div className="grid lg:grid-cols-1 gap-6">
+                    <PayrollTrendsChart />
                 </div>
             </motion.div>
         </motion.div>
