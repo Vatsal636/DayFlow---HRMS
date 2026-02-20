@@ -152,103 +152,41 @@ export default function SalarySimulatorPage() {
                 </div>
             </div>
 
-            {/* Current Month Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <StatsCard label="Present (On-time)" value={currentStats.presentDays} color="green" />
-                <StatsCard label="Late Check-ins" value={currentStats.lateDays} color="orange" />
-                <StatsCard label="Leave Days Taken" value={currentStats.approvedLeaveDays} color="purple" />
-                <StatsCard label="Absent Days" value={currentStats.absentDays} color="red" />
-                <StatsCard label="Weekends So Far" value={currentStats.weekendsSoFar} color="slate" />
-            </div>
-
-            {/* Current Status Summary */}
-            <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
-                <div className="flex items-center gap-3 text-sm">
-                    <Calendar className="w-5 h-5 text-blue-600" />
+            {/* Current Status Timeline - FIRST */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-5 rounded-xl">
+                <div className="flex items-center gap-3">
+                    <Calendar className="w-6 h-6 text-blue-600" />
                     <div className="flex-1">
-                        <p className="text-blue-900 font-medium">Today is Day {currentStats.currentDay} of {currentStats.daysInMonth} days in {currentStats.monthName}</p>
+                        <p className="text-blue-900 font-semibold text-lg">Today is Day {currentStats.currentDay} of {currentStats.daysInMonth} days in {currentStats.monthName}</p>
                         <p className="text-blue-700 mt-1">You have <span className="font-bold">{currentStats.remainingDaysInMonth} days remaining</span> ({currentStats.remainingWorkingDays} working days, assuming present)</p>
                     </div>
                 </div>
             </div>
 
-            {/* Current Calculation Breakdown */}
-            <div className="bg-green-50 border border-green-200 p-4 rounded-xl">
-                <h3 className="text-sm font-bold text-green-900 mb-3">📊 Estimated Payable Days (Optimistic Projection):</h3>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
-                    <div className="text-center">
-                        <p className="text-green-600 font-medium">Present</p>
-                        <p className="text-2xl font-bold text-green-700">{currentStats.presentDays}</p>
-                    </div>
-                    <div className="text-center">
-                        <p className="text-orange-600 font-medium">+ Late</p>
-                        <p className="text-2xl font-bold text-orange-700">{currentStats.lateDays}</p>
-                    </div>
-                    <div className="text-center">
-                        <p className="text-purple-600 font-medium">+ Leaves</p>
-                        <p className="text-2xl font-bold text-purple-700">{currentStats.approvedLeaveDays}</p>
-                    </div>
-                    <div className="text-center">
-                        <p className="text-blue-600 font-medium">+ Future</p>
-                        <p className="text-2xl font-bold text-blue-700">{currentStats.remainingWorkingDays}</p>
-                        <p className="text-[10px] text-blue-600">(assumed)</p>
-                    </div>
-                    <div className="text-center">
-                        <p className="text-slate-600 font-medium">+ Weekends</p>
-                        <p className="text-2xl font-bold text-slate-700">{currentStats.totalWeekendsInMonth}</p>
-                    </div>
-                </div>
-                <div className="mt-3 text-center bg-green-100 rounded-lg p-2">
-                    <p className="text-green-800 font-bold text-sm">= Estimated Total: {currentStats.estimatedPayableDays} days</p>
-                </div>
-                <p className="text-xs text-green-700 mt-3 text-center">
-                    <strong>Note:</strong> {currentStats.absentDays} absent days already excluded. Assumes you'll be present for remaining {currentStats.remainingWorkingDays} working days.
-                </p>
-            </div>
-
             <div className="grid lg:grid-cols-3 gap-8">
-                {/* Left: Simulation Controls */}
+                {/* Left: Main Content */}
                 <div className="lg:col-span-2 space-y-6">
-                    {/* Current Salary Display */}
-                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl border border-blue-200">
-                        <h3 className="font-bold text-lg text-slate-800 mb-4">Your Monthly CTC</h3>
-                        <div className="text-4xl font-bold text-blue-600 mb-4">
-                            ₹ {salary.wage.toLocaleString()}
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div className="bg-white/60 p-3 rounded-lg">
-                                <p className="text-slate-600">Basic (50%)</p>
-                                <p className="font-bold text-slate-800">₹ {salary.basic.toLocaleString()}</p>
+                    {/* SIMULATOR - Main Feature */}
+                    <div className="bg-white border-2 border-blue-200 p-5 rounded-xl shadow-lg">
+                        <div className="flex items-center gap-3 mb-5">
+                            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-2.5 rounded-lg">
+                                <Calculator className="w-5 h-5 text-white" />
                             </div>
-                            <div className="bg-white/60 p-3 rounded-lg">
-                                <p className="text-slate-600">HRA (50% of Basic)</p>
-                                <p className="font-bold text-slate-800">₹ {salary.hra.toLocaleString()}</p>
-                            </div>
-                            <div className="bg-white/60 p-3 rounded-lg">
-                                <p className="text-slate-600">Special Allowance</p>
-                                <p className="font-bold text-slate-800">₹ {salary.stdAllowance.toLocaleString()}</p>
-                            </div>
-                            <div className="bg-white/60 p-3 rounded-lg">
-                                <p className="text-slate-600">Other Allowances</p>
-                                <p className="font-bold text-slate-800">₹ {((salary.performanceBonus || 0) + (salary.lta || 0) + (salary.fixedAllowance || 0)).toLocaleString()}</p>
+                            <div>
+                                <h3 className="font-bold text-xl text-slate-800">Salary Projection Simulator</h3>
+                                <p className="text-slate-600 text-xs">Estimate your net pay for {currentStats.monthName}</p>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Simulation Slider */}
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2">
-                            <TrendingDown className="w-5 h-5 text-red-500" />
-                            Simulate Additional Absences
-                        </h3>
-
-                        <div className="space-y-6">
-                            <div className="space-y-4">
+                        <div className="space-y-5">
+                            {/* Slider Control */}
+                            <div className="space-y-3">
                                 <div className="flex justify-between items-center">
-                                    <label className="font-medium text-slate-700">Project Additional Absent Days</label>
-                                    <span className="text-2xl font-bold text-red-600 bg-red-50 px-4 py-2 rounded-lg">
-                                        {additionalAbsent} Days
-                                    </span>
+                                    <label className="font-semibold text-slate-700 text-sm">Project Additional Absent Days</label>
+                                    <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-lg shadow-md">
+                                        <span className="text-2xl font-bold">{additionalAbsent}</span>
+                                        <span className="text-xs ml-1.5 opacity-90">days</span>
+                                    </div>
                                 </div>
                                 <input
                                     type="range"
@@ -257,41 +195,101 @@ export default function SalarySimulatorPage() {
                                     step="1"
                                     value={additionalAbsent}
                                     onChange={(e) => setAdditionalAbsent(parseInt(e.target.value))}
-                                    className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-red-600"
+                                    className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer slider-thumb"
+                                    style={{
+                                        background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(additionalAbsent / currentStats.remainingWorkingDays) * 100}%, #e2e8f0 ${(additionalAbsent / currentStats.remainingWorkingDays) * 100}%, #e2e8f0 100%)`
+                                    }}
                                 />
-                                <div className="flex justify-between text-xs text-slate-500">
-                                    <span>0 Days</span>
-                                    <span>Max: {currentStats.remainingWorkingDays} Days (Remaining working days)</span>
+                                <div className="flex justify-between text-[10px] text-slate-500 font-medium">
+                                    <span>0 (Best Case)</span>
+                                    <span>Max: {currentStats.remainingWorkingDays} (Worst Case)</span>
                                 </div>
                             </div>
 
-                            <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl">
-                                <div className="flex items-start gap-3">
-                                    <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                                    <div className="text-sm text-amber-800">
-                                        <p className="font-semibold mb-1">How it works (Optimistic Projection):</p>
-                                        <ul className="list-disc list-inside space-y-1 text-xs">
-                                            <li>Shows your actual status till today (Day {currentStats.currentDay})</li>
-                                            <li>Assumes remaining {currentStats.remainingWorkingDays} working days as PRESENT</li>
-                                            <li>All {currentStats.totalWeekendsInMonth} weekends auto-paid (full month)</li>
-                                            <li>Estimated payable: {currentStats.estimatedPayableDays} days by default</li>
-                                            <li>Slider reduces from remaining working days (project absences)</li>
-                                            <li>If slider at 0: Best case (all remaining days present)</li>
-                                            <li>If slider at max: Worst case (absent all remaining days)</li>
-                                        </ul>
-                                    </div>
+                            {/* Comparison Cards */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 p-3 rounded-lg">
+                                    <p className="text-[11px] font-medium text-blue-700 mb-1">Currently Absent</p>
+                                    <p className="text-2xl font-bold text-blue-600">{currentStats.absentDays}</p>
+                                    <p className="text-[9px] text-blue-600 mt-0.5">days so far</p>
                                 </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-200">
-                                <div className="text-center p-3 bg-slate-50 rounded-lg">
-                                    <p className="text-xs text-slate-600 mb-1">Currently Absent</p>
-                                    <p className="text-2xl font-bold text-slate-800">{currentStats.absentDays}</p>
-                                </div>
-                                <div className="text-center p-3 bg-red-50 rounded-lg">
-                                    <p className="text-xs text-red-600 mb-1">Total If Absent</p>
+                                <div className="bg-gradient-to-br from-red-50 to-pink-50 border border-red-200 p-3 rounded-lg">
+                                    <p className="text-[11px] font-medium text-red-700 mb-1">Total If Applied</p>
                                     <p className="text-2xl font-bold text-red-600">{breakdown.totalAbsent}</p>
+                                    <p className="text-[9px] text-red-600 mt-0.5">estimated total</p>
                                 </div>
+                            </div>
+
+                            {/* Info Message */}
+                            <div className="bg-amber-50 border-l-4 border-amber-400 p-3 rounded-r-lg">
+                                <div className="flex items-start gap-2.5">
+                                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                                    <p className="text-xs text-amber-900">
+                                        Assumes remaining <strong>{currentStats.remainingWorkingDays} working days</strong> as present. 
+                                        Use the slider to project additional absences.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Attendance Stats */}
+                    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                        <h4 className="font-semibold text-slate-800 mb-4 text-sm">Current Month Status</h4>
+                        <div className="grid grid-cols-5 gap-3">
+                            <StatsCard label="Present" value={currentStats.presentDays} color="green" />
+                            <StatsCard label="Late" value={currentStats.lateDays} color="orange" />
+                            <StatsCard label="Leave" value={currentStats.approvedLeaveDays} color="purple" />
+                            <StatsCard label="Absent" value={currentStats.absentDays} color="red" />
+                            <StatsCard label="Weekends" value={currentStats.weekendsSoFar} color="slate" />
+                        </div>
+                    </div>
+
+                    {/* Calculation Formula */}
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 p-5 rounded-xl">
+                        <h4 className="font-semibold text-slate-800 mb-3 text-sm flex items-center gap-2">
+                            <span>📊</span> Estimated Payable Days Formula
+                        </h4>
+                        <div className="flex items-center justify-center gap-2 text-lg font-bold flex-wrap">
+                            <span className="text-green-600">{currentStats.presentDays}</span>
+                            <span className="text-slate-400">+</span>
+                            <span className="text-orange-600">{currentStats.lateDays}</span>
+                            <span className="text-slate-400">+</span>
+                            <span className="text-purple-600">{currentStats.approvedLeaveDays}</span>
+                            <span className="text-slate-400">+</span>
+                            <span className="text-blue-600">{currentStats.remainingWorkingDays} <span className="text-xs">(future)</span></span>
+                            <span className="text-slate-400">+</span>
+                            <span className="text-slate-600">{currentStats.totalWeekendsInMonth} <span className="text-xs">(weekends)</span></span>
+                            <span className="text-slate-400">=</span>
+                            <span className="bg-green-600 text-white px-4 py-2 rounded-lg">{currentStats.estimatedPayableDays}</span>
+                        </div>
+                    </div>
+
+                    {/* CTC Display */}
+                    <div className="bg-gradient-to-br from-slate-50 to-blue-50 p-5 rounded-xl border border-slate-200">
+                        <h4 className="font-semibold text-slate-700 mb-3 text-sm flex items-center gap-2">
+                            <DollarSign className="w-4 h-4" />
+                            Your Monthly CTC
+                        </h4>
+                        <div className="text-3xl font-bold text-blue-600 mb-4">
+                            ₹ {salary.wage.toLocaleString()}
+                        </div>
+                        <div className="grid grid-cols-4 gap-3 text-sm">
+                            <div className="bg-white p-3 rounded-lg">
+                                <p className="text-slate-600 text-xs">Basic</p>
+                                <p className="font-bold text-slate-800">₹ {salary.basic.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white p-3 rounded-lg">
+                                <p className="text-slate-600 text-xs">HRA</p>
+                                <p className="font-bold text-slate-800">₹ {salary.hra.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white p-3 rounded-lg">
+                                <p className="text-slate-600 text-xs">Special</p>
+                                <p className="font-bold text-slate-800">₹ {salary.stdAllowance.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white p-3 rounded-lg">
+                                <p className="text-slate-600 text-xs">Other</p>
+                                <p className="font-bold text-slate-800">₹ {((salary.performanceBonus || 0) + (salary.lta || 0) + (salary.fixedAllowance || 0)).toLocaleString()}</p>
                             </div>
                         </div>
                     </div>
@@ -415,17 +413,17 @@ export default function SalarySimulatorPage() {
 
 function StatsCard({ label, value, color }) {
     const colors = {
-        green: 'bg-green-50 border-green-200 text-green-600',
-        orange: 'bg-orange-50 border-orange-200 text-orange-600',
-        red: 'bg-red-50 border-red-200 text-red-600',
-        purple: 'bg-purple-50 border-purple-200 text-purple-600',
-        slate: 'bg-slate-50 border-slate-200 text-slate-600'
+        green: 'bg-green-50 border-green-200 text-green-700',
+        orange: 'bg-orange-50 border-orange-200 text-orange-700',
+        red: 'bg-red-50 border-red-200 text-red-700',
+        purple: 'bg-purple-50 border-purple-200 text-purple-700',
+        slate: 'bg-slate-50 border-slate-200 text-slate-700'
     }
 
     return (
-        <div className={`${colors[color]} p-4 rounded-xl border`}>
-            <p className="text-xs font-medium opacity-75 mb-1">{label}</p>
-            <p className="text-2xl font-bold">{value}</p>
+        <div className={`${colors[color]} p-3 rounded-lg border text-center`}>
+            <p className="text-[10px] font-medium opacity-75 mb-0.5">{label}</p>
+            <p className="text-xl font-bold">{value}</p>
         </div>
     )
 }
