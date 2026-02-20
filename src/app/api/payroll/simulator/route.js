@@ -70,17 +70,6 @@ export async function GET(request) {
             orderBy: { date: 'asc' }
         })
 
-        // DEBUG: Log what we fetched
-        console.log('=== SIMULATOR DEBUG ===')
-        console.log('User ID:', userId)
-        console.log('Query Date Range:', startDate.toISOString().split('T')[0], 'to', today.toISOString().split('T')[0])
-        console.log('Current Day:', currentDay)
-        console.log('Total Records Fetched:', allAttendanceRecords.length)
-        console.log('\nAll Records:')
-        allAttendanceRecords.forEach(r => {
-            console.log(`  ${r.date.toISOString().split('T')[0]}: Status=${r.status}, CheckIn=${r.checkIn ? new Date(r.checkIn).toLocaleTimeString() : 'none'}`)
-        })
-
         // Count present days (on-time), late days, and absent days
         let presentDays = 0
         let lateDays = 0
@@ -97,16 +86,13 @@ export async function GET(request) {
             
             if (isWeekend) {
                 skippedWeekends++
-                console.log(`  ⚠️ Skipping ${record.date.toISOString().split('T')[0]} (${dayOfWeek === 0 ? 'Sunday' : 'Saturday'}) - Status: ${record.status}`)
                 return
             }
 
             if (record.status === 'ABSENT') {
                 absentDays++
-                console.log(`  ✓ ${record.date.toISOString().split('T')[0]} - ABSENT`)
             } else if (record.status === 'LEAVE') {
                 leaveDays++
-                console.log(`  ✓ ${record.date.toISOString().split('T')[0]} - LEAVE (from attendance table)`)
             } else if (record.status === 'PRESENT' || record.status === 'HALF_DAY') {
                 if (record.checkIn) {
                     const checkIn = new Date(record.checkIn)
@@ -115,27 +101,15 @@ export async function GET(request) {
                     
                     if (checkIn > threshold) {
                         lateDays++
-                        console.log(`  ✓ ${record.date.toISOString().split('T')[0]} - LATE (${checkIn.toLocaleTimeString()})`)
                     } else {
                         presentDays++
-                        console.log(`  ✓ ${record.date.toISOString().split('T')[0]} - PRESENT ON-TIME (${checkIn.toLocaleTimeString()})`)
                     }
                 } else {
                     // No checkIn time but marked present - count as present
                     presentDays++
-                    console.log(`  ✓ ${record.date.toISOString().split('T')[0]} - PRESENT (no check-in time)`)
                 }
-            } else {
-                console.log(`  ⚠️ ${record.date.toISOString().split('T')[0]} - UNKNOWN STATUS: ${record.status}`)
             }
         })
-        
-        console.log('\n📊 Counts from Attendance Table:')
-        console.log('  Present (on-time):', presentDays)
-        console.log('  Late:', lateDays)
-        console.log('  Absent:', absentDays)
-        console.log('  Leave (from attendance):', leaveDays)
-        console.log('  Skipped (weekends):', skippedWeekends)
         
         // Calculate total working days up to today (excluding weekends)
         let totalWorkingDaysSoFar = 0
@@ -147,15 +121,9 @@ export async function GET(request) {
             }
         }
         
-        console.log('\n🔢 Working Days Calculation:')
-        console.log('  Total working days till today:', totalWorkingDaysSoFar)
-        console.log('  Attendance records (P+L+Leave):', presentDays + lateDays + leaveDays)
-        
         // Calculate ACTUAL absent days (working days with no attendance record)
         const calculatedAbsentDays = totalWorkingDaysSoFar - (presentDays + lateDays + leaveDays)
         absentDays = Math.max(0, calculatedAbsentDays) // Can't be negative
-        
-        console.log('  ✅ CALCULATED Absent Days:', absentDays)
 
         // Count approved leave DAYS from LeaveRequest table (for verification)
         const approvedLeaveRequests = await prisma.leaveRequest.findMany({
@@ -180,18 +148,11 @@ export async function GET(request) {
             // Count days between leaveStart and leaveEnd (inclusive)
             const daysDiff = Math.floor((leaveEnd - leaveStart) / (1000 * 60 * 60 * 24)) + 1
             approvedLeaveDaysFromRequests += Math.max(0, daysDiff)
-            console.log(`  Leave Request: ${leave.startDate.toISOString().split('T')[0]} to ${leave.endDate.toISOString().split('T')[0]}, Days: ${daysDiff}`)
         })
-        
-        console.log('📋 Leave Days from LeaveRequest table:', approvedLeaveDaysFromRequests)
-        console.log('📋 Leave Days from Attendance table:', leaveDays)
         
         // Use the leave days count from attendance table (more accurate as it's actual marked days)
         // If attendance table doesn't have leave records, fall back to calculated from requests
         const approvedLeaveDays = leaveDays > 0 ? leaveDays : approvedLeaveDaysFromRequests
-        
-        console.log('✅ Final Leave Days Used:', approvedLeaveDays)
-        console.log('======================\n')
 
         // Count weekends in FULL month (payroll counts all weekends, not just past ones)
         let totalWeekendsInMonth = 0
