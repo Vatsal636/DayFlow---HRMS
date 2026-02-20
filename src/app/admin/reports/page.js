@@ -198,69 +198,92 @@ export default function ReportsPage() {
             {/* Header */}
             <motion.div variants={item} className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Reports & Export</h1>
-                    <p className="text-slate-500">Generate and export detailed reports</p>
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-3 rounded-xl shadow-lg">
+                            <FileText className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-3xl font-bold text-slate-900">Reports & Analytics</h1>
+                            <p className="text-slate-500 mt-1">Generate comprehensive reports and export data</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className="bg-blue-50 border-2 border-blue-200 rounded-xl px-4 py-2">
+                        <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Viewing</p>
+                        <p className="text-sm font-bold text-blue-900">{MONTHS[month - 1]} {year}</p>
+                    </div>
                 </div>
             </motion.div>
 
             {/* Tabs */}
-            <motion.div variants={item} className="flex gap-2 border-b border-slate-200">
-                {tabs.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 -mb-[2px] ${
-                            activeTab === tab.id
-                                ? 'text-blue-600 border-blue-600'
-                                : 'text-slate-500 border-transparent hover:text-slate-700'
-                        }`}
-                    >
-                        <tab.icon className="w-4 h-4" />
-                        {tab.label}
-                    </button>
-                ))}
+            <motion.div variants={item} className="bg-white rounded-2xl border-2 border-slate-200 p-2 shadow-sm">
+                <div className="flex gap-2">
+                    {tabs.map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 font-semibold rounded-xl transition-all duration-200 ${
+                                activeTab === tab.id
+                                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30'
+                                    : 'text-slate-600 hover:bg-slate-50'
+                            }`}
+                        >
+                            <tab.icon className="w-5 h-5" />
+                            <span>{tab.label}</span>
+                        </button>
+                    ))}
+                </div>
             </motion.div>
 
             {/* Filters */}
-            <motion.div variants={item} className="bg-white rounded-2xl border border-slate-200 p-4">
+            <motion.div variants={item} className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl border-2 border-slate-200 p-6 shadow-sm">
                 <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <Filter className="w-5 h-5 text-slate-400" />
-                        <span className="text-sm font-medium text-slate-700">Filters:</span>
+                        <div className="bg-blue-500 p-2 rounded-lg">
+                            <Filter className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-sm font-bold text-slate-900">Filters</span>
                     </div>
 
-                    <select
-                        value={month}
-                        onChange={(e) => setMonth(parseInt(e.target.value))}
-                        className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                        {MONTHS.map((m, i) => (
-                            <option key={i} value={i + 1}>{m}</option>
-                        ))}
-                    </select>
+                    <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-slate-500" />
+                        <select
+                            value={month}
+                            onChange={(e) => setMonth(parseInt(e.target.value))}
+                            className="px-4 py-2.5 rounded-xl border-2 border-slate-300 bg-white text-slate-900 font-semibold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-colors"
+                        >
+                            {MONTHS.map((m, i) => (
+                                <option key={i} value={i + 1}>{m}</option>
+                            ))}
+                        </select>
+                    </div>
 
                     <select
                         value={year}
                         onChange={(e) => setYear(parseInt(e.target.value))}
-                        className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="px-4 py-2.5 rounded-xl border-2 border-slate-300 bg-white text-slate-900 font-semibold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-colors"
                     >
                         {[2024, 2025, 2026, 2027].map(y => (
                             <option key={y} value={y}>{y}</option>
                         ))}
                     </select>
 
-                    <select
-                        value={selectedEmployee}
-                        onChange={(e) => setSelectedEmployee(e.target.value)}
-                        className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[180px]"
-                    >
-                        <option value="">All Employees</option>
-                        {employees.map(emp => (
-                            <option key={emp.id} value={emp.employeeId}>
-                                {emp.employeeId} - {emp.details?.firstName} {emp.details?.lastName}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-slate-500" />
+                        <select
+                            value={selectedEmployee}
+                            onChange={(e) => setSelectedEmployee(e.target.value)}
+                            className="px-4 py-2.5 rounded-xl border-2 border-slate-300 bg-white text-slate-900 font-semibold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-colors min-w-[200px]"
+                        >
+                            <option value="">All Employees</option>
+                            {employees.map(emp => (
+                                <option key={emp.id} value={emp.employeeId}>
+                                    {emp.employeeId} - {emp.details?.firstName} {emp.details?.lastName}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
                     <div className="flex-1" />
 
@@ -268,18 +291,18 @@ export default function ReportsPage() {
                         <button
                             onClick={() => handleExport('pdf')}
                             disabled={exporting || loading || !reportData?.length}
-                            className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-red-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none"
                         >
                             {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-                            PDF
+                            Export PDF
                         </button>
                         <button
                             onClick={() => handleExport('excel')}
                             disabled={exporting || loading || !reportData?.length}
-                            className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-green-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none"
                         >
                             {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
-                            Excel
+                            Export Excel
                         </button>
                     </div>
                 </div>
@@ -316,15 +339,21 @@ export default function ReportsPage() {
             )}
 
             {/* Data Table */}
-            <motion.div variants={item} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <motion.div variants={item} className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden shadow-sm">
                 {loading ? (
-                    <div className="flex items-center justify-center py-20">
-                        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                    <div className="flex flex-col items-center justify-center py-24">
+                        <div className="bg-blue-100 p-4 rounded-2xl mb-4">
+                            <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+                        </div>
+                        <p className="text-sm font-semibold text-slate-600">Loading report data...</p>
                     </div>
                 ) : !reportData || reportData.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                        <FileText className="w-12 h-12 mb-3" />
-                        <p>No data found for the selected period</p>
+                    <div className="flex flex-col items-center justify-center py-24 text-slate-400">
+                        <div className="bg-slate-100 p-5 rounded-2xl mb-4">
+                            <FileText className="w-14 h-14 text-slate-400" />
+                        </div>
+                        <p className="text-lg font-bold text-slate-700 mb-1">No Data Found</p>
+                        <p className="text-sm text-slate-500">No records for the selected period</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
@@ -340,22 +369,24 @@ export default function ReportsPage() {
 
 function SummaryCard({ label, value, icon: Icon, color = 'slate' }) {
     const colors = {
-        slate: 'bg-slate-50 text-slate-600',
-        green: 'bg-green-50 text-green-600',
-        red: 'bg-red-50 text-red-600',
-        amber: 'bg-amber-50 text-amber-600',
-        blue: 'bg-blue-50 text-blue-600'
+        slate: { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200' },
+        green: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-200' },
+        red: { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200' },
+        amber: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200' },
+        blue: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200' }
     }
 
+    const colorScheme = colors[color]
+
     return (
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${colors[color]}`}>
-                    <Icon className="w-5 h-5" />
+        <div className={`${colorScheme.bg} rounded-xl border-2 ${colorScheme.border} p-5 hover:shadow-md transition-all duration-200`}>
+            <div className="flex items-start justify-between">
+                <div className="flex-1">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{label}</p>
+                    <p className={`text-3xl font-bold ${colorScheme.text}`}>{value}</p>
                 </div>
-                <div>
-                    <p className="text-sm text-slate-500">{label}</p>
-                    <p className="text-xl font-bold text-slate-900">{value}</p>
+                <div className={`p-3 rounded-xl ${colorScheme.bg} border-2 ${colorScheme.border}`}>
+                    <Icon className={`w-6 h-6 ${colorScheme.text}`} />
                 </div>
             </div>
         </div>
@@ -364,41 +395,41 @@ function SummaryCard({ label, value, icon: Icon, color = 'slate' }) {
 
 function AttendanceTable({ data }) {
     const statusColors = {
-        PRESENT: 'bg-green-100 text-green-700',
-        ABSENT: 'bg-red-100 text-red-700',
-        LEAVE: 'bg-amber-100 text-amber-700',
-        LATE: 'bg-orange-100 text-orange-700'
+        PRESENT: 'bg-green-100 text-green-800 border-green-200',
+        ABSENT: 'bg-red-100 text-red-800 border-red-200',
+        LEAVE: 'bg-amber-100 text-amber-800 border-amber-200',
+        LATE: 'bg-orange-100 text-orange-800 border-orange-200'
     }
 
     return (
         <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
+            <thead className="bg-gradient-to-r from-slate-700 to-slate-600">
                 <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Employee</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Department</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase">Check In</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase">Check Out</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase">Hours</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase">Status</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Employee</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Department</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">Check In</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">Check Out</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">Hours</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">Status</th>
                 </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="bg-white">
                 {data.map((row, i) => (
-                    <tr key={i} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-3 text-sm text-slate-900">{row.date}</td>
-                        <td className="px-4 py-3">
+                    <tr key={i} className={`border-b border-slate-100 hover:bg-blue-50 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                        <td className="px-6 py-4 text-sm font-semibold text-slate-900">{row.date}</td>
+                        <td className="px-6 py-4">
                             <div>
-                                <p className="text-sm font-medium text-slate-900">{row.employeeName}</p>
-                                <p className="text-xs text-slate-500">{row.employeeId}</p>
+                                <p className="text-sm font-bold text-slate-900">{row.employeeName}</p>
+                                <p className="text-xs text-slate-500 font-medium">{row.employeeId}</p>
                             </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-slate-600">{row.department}</td>
-                        <td className="px-4 py-3 text-sm text-center text-slate-600">{row.checkIn}</td>
-                        <td className="px-4 py-3 text-sm text-center text-slate-600">{row.checkOut}</td>
-                        <td className="px-4 py-3 text-sm text-center text-slate-900 font-medium">{row.workHours}</td>
-                        <td className="px-4 py-3 text-center">
-                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${statusColors[row.status] || 'bg-slate-100 text-slate-600'}`}>
+                        <td className="px-6 py-4 text-sm font-medium text-slate-700">{row.department}</td>
+                        <td className="px-6 py-4 text-sm text-center font-medium text-slate-700">{row.checkIn}</td>
+                        <td className="px-6 py-4 text-sm text-center font-medium text-slate-700">{row.checkOut}</td>
+                        <td className="px-6 py-4 text-sm text-center font-bold text-slate-900">{row.workHours}</td>
+                        <td className="px-6 py-4 text-center">
+                            <span className={`inline-flex px-3 py-1.5 rounded-lg text-xs font-bold border-2 ${statusColors[row.status] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                                 {row.status}
                             </span>
                         </td>
@@ -411,46 +442,46 @@ function AttendanceTable({ data }) {
 
 function PayrollTable({ data }) {
     const statusColors = {
-        PROCESSED: 'bg-green-100 text-green-700',
-        PENDING: 'bg-amber-100 text-amber-700',
-        PAID: 'bg-blue-100 text-blue-700'
+        PROCESSED: 'bg-green-100 text-green-800 border-green-200',
+        PENDING: 'bg-amber-100 text-amber-800 border-amber-200',
+        PAID: 'bg-blue-100 text-blue-800 border-blue-200'
     }
 
     return (
         <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
+            <thead className="bg-gradient-to-r from-slate-700 to-slate-600">
                 <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Employee</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Dept</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Basic</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">HRA</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Allowances</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Gross</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Deductions</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Net Salary</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase">Status</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Employee</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Dept</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider">Basic</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider">HRA</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider">Allowances</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider">Gross</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider">Deductions</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider">Net Salary</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">Status</th>
                 </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="bg-white">
                 {data.map((row, i) => (
-                    <tr key={i} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-3">
+                    <tr key={i} className={`border-b border-slate-100 hover:bg-blue-50 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                        <td className="px-6 py-4">
                             <div>
-                                <p className="text-sm font-medium text-slate-900">{row.employeeName}</p>
-                                <p className="text-xs text-slate-500">{row.employeeId}</p>
+                                <p className="text-sm font-bold text-slate-900">{row.employeeName}</p>
+                                <p className="text-xs text-slate-500 font-medium">{row.employeeId}</p>
                             </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-slate-600">{row.department}</td>
-                        <td className="px-4 py-3 text-sm text-right text-slate-600">{formatCurrency(row.basicPay)}</td>
-                        <td className="px-4 py-3 text-sm text-right text-slate-600">{formatCurrency(row.hra)}</td>
-                        <td className="px-4 py-3 text-sm text-right text-slate-600">
+                        <td className="px-6 py-4 text-sm font-medium text-slate-700">{row.department}</td>
+                        <td className="px-6 py-4 text-sm text-right font-bold text-slate-900">{formatCurrency(row.basicPay)}</td>
+                        <td className="px-6 py-4 text-sm text-right font-bold text-green-600">{formatCurrency(row.hra)}</td>
+                        <td className="px-6 py-4 text-sm text-right font-bold text-green-600">
                             {formatCurrency(row.medicalAllowance + row.transportAllowance + row.specialAllowance)}
                         </td>
-                        <td className="px-4 py-3 text-sm text-right font-medium text-slate-900">{formatCurrency(row.grossSalary)}</td>
-                        <td className="px-4 py-3 text-sm text-right text-red-600">{formatCurrency(row.deductions)}</td>
-                        <td className="px-4 py-3 text-sm text-right font-bold text-green-600">{formatCurrency(row.netSalary)}</td>
-                        <td className="px-4 py-3 text-center">
-                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${statusColors[row.status] || 'bg-slate-100 text-slate-600'}`}>
+                        <td className="px-6 py-4 text-sm text-right font-bold text-slate-900 text-base">{formatCurrency(row.grossSalary)}</td>
+                        <td className="px-6 py-4 text-sm text-right font-bold text-red-600">{formatCurrency(row.deductions)}</td>
+                        <td className="px-6 py-4 text-sm text-right font-bold text-blue-700 text-base">{formatCurrency(row.netSalary)}</td>
+                        <td className="px-6 py-4 text-center">
+                            <span className={`inline-flex px-3 py-1.5 rounded-lg text-xs font-bold border-2 ${statusColors[row.status] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                                 {row.status}
                             </span>
                         </td>
@@ -463,53 +494,53 @@ function PayrollTable({ data }) {
 
 function LeavesTable({ data }) {
     const statusColors = {
-        APPROVED: 'bg-green-100 text-green-700',
-        PENDING: 'bg-amber-100 text-amber-700',
-        REJECTED: 'bg-red-100 text-red-700'
+        APPROVED: 'bg-green-100 text-green-800 border-green-200',
+        PENDING: 'bg-amber-100 text-amber-800 border-amber-200',
+        REJECTED: 'bg-red-100 text-red-800 border-red-200'
     }
 
     const typeColors = {
-        PAID: 'bg-blue-100 text-blue-700',
-        SICK: 'bg-purple-100 text-purple-700',
-        UNPAID: 'bg-slate-100 text-slate-700',
-        CASUAL: 'bg-cyan-100 text-cyan-700'
+        PAID: 'bg-blue-100 text-blue-800 border-blue-200',
+        SICK: 'bg-purple-100 text-purple-800 border-purple-200',
+        UNPAID: 'bg-slate-100 text-slate-800 border-slate-300',
+        CASUAL: 'bg-cyan-100 text-cyan-800 border-cyan-200'
     }
 
     return (
         <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
+            <thead className="bg-gradient-to-r from-slate-700 to-slate-600">
                 <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Employee</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Department</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase">Type</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase">From</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase">To</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase">Days</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Reason</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase">Status</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Employee</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Department</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">From</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">To</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">Days</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Reason</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">Status</th>
                 </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="bg-white">
                 {data.map((row, i) => (
-                    <tr key={i} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-3">
+                    <tr key={i} className={`border-b border-slate-100 hover:bg-blue-50 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                        <td className="px-6 py-4">
                             <div>
-                                <p className="text-sm font-medium text-slate-900">{row.employeeName}</p>
-                                <p className="text-xs text-slate-500">{row.employeeId}</p>
+                                <p className="text-sm font-bold text-slate-900">{row.employeeName}</p>
+                                <p className="text-xs text-slate-500 font-medium">{row.employeeId}</p>
                             </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-slate-600">{row.department}</td>
-                        <td className="px-4 py-3 text-center">
-                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${typeColors[row.leaveType] || 'bg-slate-100 text-slate-600'}`}>
+                        <td className="px-6 py-4 text-sm font-medium text-slate-700">{row.department}</td>
+                        <td className="px-6 py-4 text-center">
+                            <span className={`inline-flex px-3 py-1.5 rounded-lg text-xs font-bold border-2 ${typeColors[row.leaveType] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                                 {row.leaveType}
                             </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-center text-slate-600">{row.startDate}</td>
-                        <td className="px-4 py-3 text-sm text-center text-slate-600">{row.endDate}</td>
-                        <td className="px-4 py-3 text-sm text-center font-medium text-slate-900">{row.days}</td>
-                        <td className="px-4 py-3 text-sm text-slate-600 max-w-[200px] truncate" title={row.reason}>{row.reason}</td>
-                        <td className="px-4 py-3 text-center">
-                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${statusColors[row.status] || 'bg-slate-100 text-slate-600'}`}>
+                        <td className="px-6 py-4 text-sm text-center font-semibold text-slate-900">{row.startDate}</td>
+                        <td className="px-6 py-4 text-sm text-center font-semibold text-slate-900">{row.endDate}</td>
+                        <td className="px-6 py-4 text-sm text-center font-bold text-slate-900 text-base">{row.days}</td>
+                        <td className="px-6 py-4 text-sm text-slate-700 max-w-[250px] truncate font-medium" title={row.reason}>{row.reason}</td>
+                        <td className="px-6 py-4 text-center">
+                            <span className={`inline-flex px-3 py-1.5 rounded-lg text-xs font-bold border-2 ${statusColors[row.status] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                                 {row.status}
                             </span>
                         </td>
