@@ -46,12 +46,13 @@ export async function GET(request) {
             // Normalize leave type (case-insensitive matching)
             const type = (leave.type || '').toLowerCase()
             
+            // Check unpaid BEFORE paid (since "unpaid" contains "paid")
             if (type.includes('sick')) {
                 distribution['Sick Leave'] += days
-            } else if (type.includes('paid')) {
-                distribution['Paid Leave'] += days
             } else if (type.includes('unpaid')) {
                 distribution['Unpaid Leave'] += days
+            } else if (type.includes('paid')) {
+                distribution['Paid Leave'] += days
             }
         })
 
