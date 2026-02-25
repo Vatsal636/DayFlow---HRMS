@@ -10,14 +10,15 @@ export async function GET(request) {
         const payload = await verifyToken(token)
         const userId = payload.id
 
-        // Get current month date range in UTC to match database storage
+        // Get current month date range (use local timezone to match calendar display)
         const now = new Date()
         const year = now.getFullYear()
         const month = now.getMonth()
         
-        // Create UTC dates for month boundaries
-        const startOfMonth = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0))
-        const endOfMonth = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999))
+        // Create dates in local timezone to match attendance history API
+        const startOfMonth = new Date(year, month, 1)
+        const endOfMonth = new Date(year, month + 1, 0)
+        endOfMonth.setHours(23, 59, 59, 999)
 
         const attendanceRecords = await prisma.attendance.findMany({
             where: {
@@ -41,20 +42,26 @@ export async function GET(request) {
         const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
         attendanceRecords.forEach(r => {
-            // Count present days (only PRESENT status counts, not ABSENT/LEAVE)
-            if (r.status === 'PRESENT') {
+            // Only count weekdays (Monday-Friday), exclude weekends
+            const dayOfWeek = r.date.getDay()
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6 // Sunday or Saturday
+            
+            if (isWeekend) return // Skip weekend records
+            
+            // Count present days - only weekdays where employee checked in
+            if (r.status === 'PRESENT' && r.checkIn) {
                 presentDays++
             }
 
-            // Check if late (check-in after 10:00 AM in local time)
+            // Check if late (check-in after 9:30 AM in local time)
             if (r.checkIn) {
                 const checkInTime = new Date(r.checkIn)
-                // Get local time components
                 const hours = checkInTime.getHours()
                 const minutes = checkInTime.getMinutes()
                 
-                // Late if check-in is 10:01 AM or later
-                if (hours > 10 || (hours === 10 && minutes > 0)) {
+                // Late if check-in is after 9:30 AM
+                // 9:31 AM or later = LATE
+                if (hours > 9 || (hours === 9 && minutes > 30)) {
                     lateDays++
                 }
 
@@ -77,7 +84,7 @@ export async function GET(request) {
                         }
                     }
                     // For past days without checkout, don't count hours
-                    // This encourages proper checkout behavior and maintains accurate records
+                    // This maintains accurate records
                 }
             }
         })
