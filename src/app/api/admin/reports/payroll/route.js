@@ -18,9 +18,13 @@ export async function GET(request) {
         const year = parseInt(searchParams.get('year')) || new Date().getFullYear()
         const employeeId = searchParams.get('employeeId') // Optional filter
 
+        // Convert month from 1-indexed (frontend) to 0-indexed (database)
+        // Frontend: January=1, Backend: January=0
+        const dbMonth = month - 1
+
         // Build where clause
         const whereClause = {
-            month,
+            month: dbMonth,
             year
         }
 
@@ -58,30 +62,30 @@ export async function GET(request) {
         // Calculate summary stats
         const summary = {
             totalEmployees: payrolls.length,
-            totalGrossSalary: payrolls.reduce((sum, p) => sum + (p.grossSalary || 0), 0),
-            totalDeductions: payrolls.reduce((sum, p) => sum + (p.deductions || 0), 0),
-            totalNetSalary: payrolls.reduce((sum, p) => sum + (p.netSalary || 0), 0)
+            totalGrossSalary: payrolls.reduce((sum, p) => sum + (p.totalEarnings || 0), 0),
+            totalDeductions: payrolls.reduce((sum, p) => sum + (p.totalDeductions || 0), 0),
+            totalNetSalary: payrolls.reduce((sum, p) => sum + (p.netPay || 0), 0)
         }
 
         // Format data for export
-        const reportData = payrolls.map(record => ({
-            employeeId: record.user.employeeId,
-            employeeName: `${record.user.details?.firstName || ''} ${record.user.details?.lastName || ''}`.trim(),
-            department: record.user.details?.department || 'N/A',
-            designation: record.user.details?.jobTitle || 'N/A',
-            basicPay: record.user.salary?.basicPay || 0,
-            hra: record.user.salary?.hra || 0,
-            medicalAllowance: record.user.salary?.medicalAllowance || 0,
-            transportAllowance: record.user.salary?.transportAllowance || 0,
-            specialAllowance: record.user.salary?.specialAllowance || 0,
-            grossSalary: record.grossSalary || 0,
-            workingDays: record.workingDays || 0,
-            presentDays: record.presentDays || 0,
-            deductions: record.deductions || 0,
-            netSalary: record.netSalary || 0,
-            status: record.status,
-            paidAt: record.paidAt ? new Date(record.paidAt).toLocaleDateString('en-IN') : '-'
-        }))
+        const reportData = payrolls.map(record => {
+            const salary = record.user.salary
+            return {
+                employeeId: record.user.employeeId,
+                employeeName: `${record.user.details?.firstName || ''} ${record.user.details?.lastName || ''}`.trim(),
+                department: record.user.details?.department || 'N/A',
+                designation: record.user.details?.jobTitle || 'N/A',
+                basicPay: salary?.basic || 0,
+                hra: salary?.hra || 0,
+                medicalAllowance: salary?.stdAllowance || 0,
+                transportAllowance: salary?.performanceBonus || 0,
+                specialAllowance: salary?.lta || 0,
+                grossSalary: record.totalEarnings || 0,
+                deductions: record.totalDeductions || 0,
+                netSalary: record.netPay || 0,
+                status: record.status
+            }
+        })
 
         return NextResponse.json({
             success: true,
