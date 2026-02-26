@@ -2,11 +2,13 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import { User, Mail, Phone, MapPin, Briefcase, Calendar, Save, Loader2, Camera, Bell, BellOff, Settings } from "lucide-react"
+import { User, Mail, Phone, MapPin, Briefcase, Calendar, Save, Loader2, Camera, Bell, BellOff, Settings, CheckCircle2, AlertCircle } from "lucide-react"
+import { useToast } from "@/components/Toast"
 
 function ProfileContent() {
     const searchParams = useSearchParams()
     const defaultTab = searchParams.get('tab') || 'profile'
+    const toast = useToast()
     
     const [activeTab, setActiveTab] = useState(defaultTab)
     const [user, setUser] = useState(null)
@@ -60,9 +62,12 @@ function ProfileContent() {
             const data = await res.json()
             if (res.ok) {
                 setNotifPrefs(data.preferences)
+            } else {
+                toast.error(data.error || 'Failed to load notification preferences')
             }
         } catch (e) {
             console.error(e)
+            toast.error('Failed to load notification preferences')
         } finally {
             setPrefsLoading(false)
         }
@@ -88,11 +93,17 @@ function ProfileContent() {
                 },
                 body: JSON.stringify(notifPrefs)
             })
+            const data = await res.json()
             if (res.ok) {
-                // Show success
+                toast.success('Notification preferences saved successfully!')
+                // Update local state with server response
+                setNotifPrefs(data.preferences)
+            } else {
+                toast.error(data.error || 'Failed to save preferences')
             }
         } catch (e) {
             console.error(e)
+            toast.error('Failed to save preferences. Please try again.')
         } finally {
             setPrefsSaving(false)
         }
@@ -110,12 +121,16 @@ function ProfileContent() {
                 },
                 body: JSON.stringify(formData)
             })
+            const data = await res.json()
             if (res.ok) {
-                // Show success feedback
+                toast.success('Profile updated successfully!')
                 fetchProfile() // Refresh
+            } else {
+                toast.error(data.error || 'Failed to update profile')
             }
         } catch (e) {
             console.error(e)
+            toast.error('Failed to update profile. Please try again.')
         } finally {
             setSaving(false)
         }
@@ -288,24 +303,34 @@ function ProfileContent() {
             </div>
             ) : (
                 /* Notification Preferences Tab */
-                <div className="max-w-2xl">
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-                        <div className="flex items-center gap-3 mb-6">
-                            <Settings className="w-6 h-6 text-blue-500" />
-                            <h3 className="text-lg font-bold text-slate-800">Notification Preferences</h3>
+                <div className="max-w-3xl mx-auto">
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200 p-6">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="p-2 bg-blue-100 rounded-lg">
+                                    <Settings className="w-5 h-5 text-blue-600" />
+                                </div>
+                                <h3 className="text-xl font-bold text-slate-900">Notification Preferences</h3>
+                            </div>
+                            <p className="text-sm text-slate-600 ml-11">Manage how you receive updates and alerts</p>
                         </div>
                         
-                        {prefsLoading ? (
-                            <div className="py-8 text-center text-slate-500">Loading preferences...</div>
-                        ) : notifPrefs ? (
-                            <div className="space-y-8">
+                        <div className="p-6">
+                            {prefsLoading ? (
+                                <div className="py-12 text-center">
+                                    <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
+                                    <p className="text-slate-500">Loading preferences...</p>
+                                </div>
+                            ) : notifPrefs ? (
+                            <div className="space-y-6">
                                 {/* Email Notifications */}
                                 <div>
-                                    <h4 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                                        <Mail className="w-4 h-4 text-slate-400" />
-                                        Email Notifications
-                                    </h4>
-                                    <div className="space-y-3">
+                                    <div className="flex items-center gap-2 pb-2 border-b border-slate-200 mb-4">
+                                        <Mail className="w-5 h-5 text-blue-600" />
+                                        <h4 className="font-semibold text-lg text-slate-900">Email Notifications</h4>
+                                    </div>
+                                    <div className="space-y-2">
                                         <TogglePreference
                                             label="Leave Updates"
                                             description="Get notified when your leave requests are approved or rejected"
@@ -335,11 +360,11 @@ function ProfileContent() {
                                 
                                 {/* In-App Notifications */}
                                 <div>
-                                    <h4 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                                        <Bell className="w-4 h-4 text-slate-400" />
-                                        In-App Notifications
-                                    </h4>
-                                    <div className="space-y-3">
+                                    <div className="flex items-center gap-2 pb-2 border-b border-slate-200 mb-4">
+                                        <Bell className="w-5 h-5 text-indigo-600" />
+                                        <h4 className="font-semibold text-lg text-slate-900">In-App Notifications</h4>
+                                    </div>
+                                    <div className="space-y-2">
                                         <TogglePreference
                                             label="Leave Updates"
                                             description="Show notification when leave status changes"
@@ -367,19 +392,47 @@ function ProfileContent() {
                                     </div>
                                 </div>
                                 
-                                <div className="pt-4 border-t border-slate-100 flex justify-end">
+                                <div className="pt-6 border-t border-slate-200 flex justify-end gap-3">
+                                    <button
+                                        onClick={fetchNotificationPrefs}
+                                        disabled={prefsSaving}
+                                        className="px-6 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+                                    >
+                                        Reset
+                                    </button>
                                     <button
                                         onClick={saveNotifPrefs}
                                         disabled={prefsSaving}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-6 rounded-xl shadow-lg shadow-blue-200 transition-all flex items-center gap-2 disabled:opacity-70"
+                                        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-8 rounded-xl shadow-lg shadow-blue-200 transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                                     >
-                                        {prefsSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                        Save Preferences
+                                        {prefsSaving ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Saving...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CheckCircle2 className="w-4 h-4" />
+                                                Save Preferences
+                                            </>
+                                        )}
                                     </button>
                                 </div>
                             </div>
                         ) : (
-                            <div className="py-8 text-center text-slate-500">Failed to load preferences</div>
+                            <div className="py-12 text-center">
+                                <div className="inline-flex items-center justify-center w-16 h-16 bg-red-50 rounded-full mb-4">
+                                    <AlertCircle className="w-8 h-8 text-red-600" />
+                                </div>
+                                <p className="text-slate-800 font-medium mb-2">Failed to load preferences</p>
+                                <p className="text-sm text-slate-500 mb-4">There was an error loading your notification settings</p>
+                                <button
+                                    onClick={fetchNotificationPrefs}
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                                >
+                                    Try Again
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -402,20 +455,23 @@ export default function ProfilePage() {
 
 function TogglePreference({ label, description, checked, onChange }) {
     return (
-        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-            <div>
-                <p className="font-medium text-slate-800">{label}</p>
+        <div className="flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors group">
+            <div className="flex-1 pr-4">
+                <p className="font-medium text-slate-800 mb-0.5">{label}</p>
                 <p className="text-sm text-slate-500">{description}</p>
             </div>
             <button
                 onClick={() => onChange(!checked)}
-                className={`relative w-12 h-6 rounded-full transition-colors ${
-                    checked ? 'bg-blue-500' : 'bg-slate-300'
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                    checked ? 'bg-blue-600' : 'bg-slate-300'
                 }`}
+                role="switch"
+                aria-checked={checked}
+                aria-label={`Toggle ${label}`}
             >
                 <span
-                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                        checked ? 'translate-x-7' : 'translate-x-1'
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        checked ? 'translate-x-5' : 'translate-x-0'
                     }`}
                 />
             </button>
