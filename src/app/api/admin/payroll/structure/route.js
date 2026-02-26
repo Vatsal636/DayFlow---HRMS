@@ -81,14 +81,14 @@ export async function POST(request) {
         const employee = await prisma.user.findUnique({
             where: { id: parseInt(userId) },
             select: { 
-                employeeDetails: { 
+                details: { 
                     select: { firstName: true, lastName: true } 
                 } 
             }
         })
         
-        const employeeName = employee?.employeeDetails 
-            ? `${employee.employeeDetails.firstName} ${employee.employeeDetails.lastName}`
+        const employeeName = employee?.details 
+            ? `${employee.details.firstName} ${employee.details.lastName}`
             : `User ${userId}`
 
         // Audit log
