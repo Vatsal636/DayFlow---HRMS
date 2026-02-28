@@ -123,7 +123,23 @@ model Payroll {
   month       Int
   year        Int
   
-  // Snapshot data
+  // Calculation Breakdown (for auditability)
+  daysInMonth        Int      @default(30)
+  attendanceDays     Int      @default(0)
+  weekendDays        Int      @default(0)
+  leaveDays          Int      @default(0)
+  payableDays        Int      @default(0)
+  
+  // Earnings Breakdown
+  grossSalary        Float    @default(0)
+  earnedGross        Float    @default(0)
+  
+  // Deductions Breakdown
+  pfDeduction        Float    @default(0)
+  profTaxDeduction   Float    @default(0)
+  otherDeductions    Float    @default(0)
+  
+  // Legacy fields (kept for backward compatibility)
   baseWage    Float
   totalEarnings Float
   totalDeductions Float

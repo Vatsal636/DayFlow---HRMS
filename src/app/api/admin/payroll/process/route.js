@@ -99,9 +99,14 @@ export async function POST(request) {
                 }
             })
 
-            // 3. Count Weekends (Saturday & Sunday) and Approved Leaves (Auto-paid)
+            // 3. Count Weekends (Saturday & Sunday) starting from effective employment date
+            // Critical Fix: Mid-month joiners should only get weekends AFTER joining
+            const joiningDate = emp.details?.joiningDate ? new Date(emp.details.joiningDate) : startDate
+            const effectiveStartDate = joiningDate > startDate ? joiningDate : startDate
+            const effectiveStartDay = effectiveStartDate.getDate()
+            
             let weekends = 0
-            for (let d = 1; d <= daysInMonth; d++) {
+            for (let d = effectiveStartDay; d <= daysInMonth; d++) {
                 const date = new Date(year, month, d)
                 const dayOfWeek = date.getDay()
                 // Count both Saturday (6) and Sunday (0) as paid weekends
@@ -133,7 +138,16 @@ export async function POST(request) {
                 approvedLeaveDays += Math.max(0, daysDiff)
             })
 
-            const payableDays = Math.min(attendanceCount + weekends + approvedLeaveDays, daysInMonth)
+            // Critical Fix: Zero-attendance employees should NOT get weekend pay
+            // Business Rule: Weekends only paid when employee has actual attendance or approved leave
+            let payableDays = 0
+            if (attendanceCount === 0 && approvedLeaveDays === 0) {
+                // Full month absent with no approved leave - no payment for weekends
+                payableDays = 0
+            } else {
+                // Normal calculation - include weekends
+                payableDays = Math.min(attendanceCount + weekends + approvedLeaveDays, daysInMonth)
+            }
 
             // 4. Calculate Payout using Industry Standard Formula
             // Gross Salary = Basic + HRA + Allowances
@@ -162,10 +176,29 @@ export async function POST(request) {
                     userId: emp.id,
                     month: parseInt(month),
                     year: parseInt(year),
+                    
+                    // Detailed Breakdown (NEW - for auditability)
+                    daysInMonth: daysInMonth,
+                    attendanceDays: attendanceCount,
+                    weekendDays: weekends,
+                    leaveDays: approvedLeaveDays,
+                    payableDays: payableDays,
+                    
+                    // Earnings Breakdown
+                    grossSalary: grossSalary,
+                    earnedGross: earnedGross,
+                    
+                    // Deductions Breakdown
+                    pfDeduction: earnedPF,
+                    profTaxDeduction: earnedProfTax,
+                    otherDeductions: 0,
+                    
+                    // Legacy fields (kept for compatibility)
                     baseWage: salary.wage,
                     totalEarnings: earnedGross,
                     totalDeductions: totalDeductions,
                     netPay: netPay,
+                    
                     status: 'GENERATED'
                 }
             })

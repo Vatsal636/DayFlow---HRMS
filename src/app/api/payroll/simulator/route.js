@@ -154,9 +154,14 @@ export async function GET(request) {
         // If attendance table doesn't have leave records, fall back to calculated from requests
         const approvedLeaveDays = leaveDays > 0 ? leaveDays : approvedLeaveDaysFromRequests
 
-        // Count weekends in FULL month (payroll counts all weekends, not just past ones)
+        // Count weekends in FULL month (or from joining date)
+        // Critical Fix: Mid-month joiners should only count weekends AFTER joining
+        const joiningDate = user?.details?.joiningDate ? new Date(user.details.joiningDate) : startDate
+        const effectiveStartDate = joiningDate > startDate ? joiningDate : startDate
+        const effectiveStartDay = effectiveStartDate.getDate()
+        
         let totalWeekendsInMonth = 0
-        for (let d = 1; d <= daysInMonth; d++) {
+        for (let d = effectiveStartDay; d <= daysInMonth; d++) {
             const date = new Date(year, month, d)
             const dayOfWeek = date.getDay()
             if (dayOfWeek === 0 || dayOfWeek === 6) totalWeekendsInMonth++
@@ -186,8 +191,18 @@ export async function GET(request) {
         }
         const remainingWorkingDays = remainingDays - remainingWeekends
         
+        // Critical Fix: Apply same zero-attendance business rule as payroll
         // Estimated payable = current actual + remaining working days (assumed present) + all weekends
-        const estimatedPayableDays = attendanceCount + approvedLeaveDays + remainingWorkingDays + totalWeekendsInMonth
+        // BUT if attendance and approved leaves are zero, weekends should NOT be counted
+        let estimatedPayableDays = 0
+        if (attendanceCount === 0 && approvedLeaveDays === 0) {
+            // No attendance or approved leave - no weekend payment
+            // Optimistic projection: assume future perfect attendance + future weekends
+            estimatedPayableDays = remainingWorkingDays + remainingWeekends
+        } else {
+            // Normal calculation with weekends
+            estimatedPayableDays = attendanceCount + approvedLeaveDays + remainingWorkingDays + totalWeekendsInMonth
+        }
 
         // Calculate leave balance (Annual limit 12 - approved leaves this year)
         const totalApprovedLeavesThisYear = await prisma.leaveRequest.count({
