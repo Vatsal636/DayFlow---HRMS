@@ -16,21 +16,31 @@ export default function SalarySimulatorPage() {
         presentDays: 0,
         lateDays: 0,
         absentDays: 0,
-        approvedLeaveDays: 0, // Actual leave days taken
-        weekendsSoFar: 0, // Weekends occurred so far
-        totalWeekendsInMonth: 0, // Total weekends in month
-        remainingWorkingDays: 0, // Working days remaining
-        estimatedPayableDays: 0, // Estimated with optimistic projection
+        approvedLeaveDays: 0,
+        weekendsSoFar: 0,
+        totalWeekendsInMonth: 0,
+        remainingWorkingDays: 0,
+        estimatedPayableDays: 0,
+        realisticPayableDays: 0,
+        pessimisticPayableDays: 0,
         daysInMonth: 30,
         currentDay: 1,
         remainingDaysInMonth: 29,
         monthName: 'Current Month'
     })
 
-    // Simulation Inputs - Additional days to project
+    // Scenario selection: 'optimistic' | 'realistic' | 'pessimistic'
+    const [scenario, setScenario] = useState('optimistic')
+    
+    // Backend-calculated breakdowns for all scenarios
+    const [optimisticBreakdown, setOptimisticBreakdown] = useState(null)
+    const [realisticBreakdown, setRealisticBreakdown] = useState(null)
+    const [pessimisticBreakdown, setPessimisticBreakdown] = useState(null)
+    
+    // Simulation Inputs - Additional days to project (manual adjustment)
     const [additionalAbsent, setAdditionalAbsent] = useState(0)
     
-    // Calculated Breakdown
+    // Active breakdown (based on scenario and manual adjustments)
     const [breakdown, setBreakdown] = useState({
         grossEarnings: 0,
         earnedGross: 0,
@@ -54,6 +64,11 @@ export default function SalarySimulatorPage() {
                 const data = await res.json()
                 setSalary(data.salary)
                 setCurrentStats(data.currentStats)
+                
+                // Store backend-calculated breakdowns
+                setOptimisticBreakdown(data.optimisticBreakdown)
+                setRealisticBreakdown(data.realisticBreakdown)
+                setPessimisticBreakdown(data.pessimisticBreakdown)
             }
         } catch (e) {
             console.error(e)
@@ -62,52 +77,76 @@ export default function SalarySimulatorPage() {
         }
     }
 
-    // Real-time Calculation (Matches exact payroll logic)
+    // Real-time Calculation (Uses backend breakdowns + manual adjustments)
     useEffect(() => {
-        if (!salary) return
+        if (!salary || !optimisticBreakdown || !realisticBreakdown || !pessimisticBreakdown) return
         calculateSalary()
-    }, [salary, currentStats, additionalAbsent])
+    }, [salary, currentStats, optimisticBreakdown, realisticBreakdown, pessimisticBreakdown, scenario, additionalAbsent])
 
     const calculateSalary = () => {
-        const { estimatedPayableDays, daysInMonth } = currentStats
-
-        // Start with optimistic estimate (assumes remaining days as present)
-        // Then subtract projected additional absences from slider
-        const finalPayableDays = Math.max(0, estimatedPayableDays - additionalAbsent)
-        const totalAbsent = currentStats.absentDays + additionalAbsent
-
-        // Gross Salary Calculation (Exact match with payroll structure)
-        const grossEarnings = salary.basic + salary.hra + salary.stdAllowance + 
-                             (salary.fixedAllowance || 0) + (salary.performanceBonus || 0) + 
-                             (salary.lta || 0)
-
-        // Pro-rated calculation based on payable days
-        const perDayGross = grossEarnings / daysInMonth
-        const earnedGross = Math.round(perDayGross * finalPayableDays)
-
-        // Deductions (pro-rated)
-        const perDayPF = salary.pf / daysInMonth
-        const earnedPF = Math.round(perDayPF * finalPayableDays)
-        const earnedProfTax = finalPayableDays >= 20 ? salary.profTax : 0
-
-        const totalDeductions = earnedPF + earnedProfTax
-        const netPay = earnedGross - totalDeductions
-
-        // Loss of Pay calculation
-        const fullMonthNet = grossEarnings - salary.pf - salary.profTax
-        const lossOfPay = fullMonthNet - netPay
-
-        setBreakdown({
-            grossEarnings,
-            earnedGross,
-            earnedPF,
-            earnedProfTax,
-            totalDeductions,
-            netPay,
-            payableDays: finalPayableDays,
-            totalAbsent,
-            lossOfPay
-        })
+        // Select base breakdown based on scenario
+        let baseBreakdown
+        switch (scenario) {
+            case 'realistic':
+                baseBreakdown = realisticBreakdown
+                break
+            case 'pessimistic':
+                baseBreakdown = pessimisticBreakdown
+                break
+            case 'optimistic':
+            default:
+                baseBreakdown = optimisticBreakdown
+                break
+        }
+        
+        // If user added manual adjustments via slider, recalculate
+        if (additionalAbsent > 0) {
+            const { estimatedPayableDays, daysInMonth } = currentStats
+            
+            // Adjust payable days based on additional absences
+            const adjustedPayableDays = Math.max(0, baseBreakdown.payableDays - additionalAbsent)
+            const totalAbsent = currentStats.absentDays + additionalAbsent
+            
+            // Recalculate with adjusted payable days
+            const grossEarnings = baseBreakdown.grossSalary
+            const perDayGross = grossEarnings / daysInMonth
+            const earnedGross = Math.round(perDayGross * adjustedPayableDays)
+            
+            const perDayPF = salary.pf / daysInMonth
+            const earnedPF = Math.round(perDayPF * adjustedPayableDays)
+            const earnedProfTax = adjustedPayableDays >= 20 ? salary.profTax : 0
+            
+            const totalDeductions = earnedPF + earnedProfTax
+            const netPay = earnedGross - totalDeductions
+            
+            const fullMonthNet = grossEarnings - salary.pf - salary.profTax
+            const lossOfPay = fullMonthNet - netPay
+            
+            setBreakdown({
+                grossEarnings,
+                earnedGross,
+                earnedPF,
+                earnedProfTax,
+                totalDeductions,
+                netPay,
+                payableDays: adjustedPayableDays,
+                totalAbsent,
+                lossOfPay
+            })
+        } else {
+            // Use backend breakdown directly
+            setBreakdown({
+                grossEarnings: baseBreakdown.grossSalary,
+                earnedGross: baseBreakdown.earnedGross,
+                earnedPF: baseBreakdown.pfDeduction,
+                earnedProfTax: baseBreakdown.profTaxDeduction,
+                totalDeductions: baseBreakdown.totalDeductions,
+                netPay: baseBreakdown.netPay,
+                payableDays: baseBreakdown.payableDays,
+                totalAbsent: currentStats.absentDays,
+                lossOfPay: baseBreakdown.lossOfPay
+            })
+        }
     }
 
     if (loading) {
@@ -166,6 +205,63 @@ export default function SalarySimulatorPage() {
             <div className="grid lg:grid-cols-3 gap-8">
                 {/* Left: Main Content */}
                 <div className="lg:col-span-2 space-y-6">
+                    {/* SCENARIO SELECTOR - NEW */}
+                    <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-sm">
+                        <h4 className="font-semibold text-slate-800 mb-3 text-sm">Projection Mode</h4>
+                        <div className="grid grid-cols-3 gap-3">
+                            <button
+                                onClick={() => setScenario('optimistic')}
+                                className={`p-4 rounded-lg border-2 transition-all ${
+                                    scenario === 'optimistic'
+                                        ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-400 shadow-md'
+                                        : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                                }`}
+                            >
+                                <div className="flex items-center justify-center gap-2 mb-2">
+                                    <TrendingDown className={`w-5 h-5 ${scenario === 'optimistic' ? 'text-green-600' : 'text-slate-500'}`} />
+                                    <span className={`font-bold text-sm ${scenario === 'optimistic' ? 'text-green-700' : 'text-slate-600'}`}>
+                                        Best Case
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-500">Perfect future attendance</p>
+                            </button>
+                            
+                            <button
+                                onClick={() => setScenario('realistic')}
+                                className={`p-4 rounded-lg border-2 transition-all ${
+                                    scenario === 'realistic'
+                                        ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-400 shadow-md'
+                                        : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                                }`}
+                            >
+                                <div className="flex items-center justify-center gap-2 mb-2">
+                                    <Calculator className={`w-5 h-5 ${scenario === 'realistic' ? 'text-blue-600' : 'text-slate-500'}`} />
+                                    <span className={`font-bold text-sm ${scenario === 'realistic' ? 'text-blue-700' : 'text-slate-600'}`}>
+                                        Realistic
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-500">Based on your attendance rate</p>
+                            </button>
+                            
+                            <button
+                                onClick={() => setScenario('pessimistic')}
+                                className={`p-4 rounded-lg border-2 transition-all ${
+                                    scenario === 'pessimistic'
+                                        ? 'bg-gradient-to-br from-red-50 to-pink-50 border-red-400 shadow-md'
+                                        : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                                }`}
+                            >
+                                <div className="flex items-center justify-center gap-2 mb-2">
+                                    <AlertCircle className={`w-5 h-5 ${scenario === 'pessimistic' ? 'text-red-600' : 'text-slate-500'}`} />
+                                    <span className={`font-bold text-sm ${scenario === 'pessimistic' ? 'text-red-700' : 'text-slate-600'}`}>
+                                        Worst Case
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-500">No future attendance</p>
+                            </button>
+                        </div>
+                    </div>
+
                     {/* SIMULATOR - Main Feature */}
                     <div className="bg-white border-2 border-blue-200 p-5 rounded-xl shadow-lg">
                         <div className="flex items-center gap-3 mb-5">
@@ -221,12 +317,31 @@ export default function SalarySimulatorPage() {
                             </div>
 
                             {/* Info Message */}
-                            <div className="bg-amber-50 border-l-4 border-amber-400 p-3 rounded-r-lg">
+                            <div className={`border-l-4 p-3 rounded-r-lg ${
+                                scenario === 'optimistic' ? 'bg-green-50 border-green-400' :
+                                scenario === 'realistic' ? 'bg-blue-50 border-blue-400' :
+                                'bg-red-50 border-red-400'
+                            }`}>
                                 <div className="flex items-start gap-2.5">
-                                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                                    <p className="text-xs text-amber-900">
-                                        Assumes remaining <strong>{currentStats.remainingWorkingDays} working days</strong> as present. 
-                                        Use the slider to project additional absences.
+                                    <AlertCircle className={`w-4 h-4 shrink-0 mt-0.5 ${
+                                        scenario === 'optimistic' ? 'text-green-600' :
+                                        scenario === 'realistic' ? 'text-blue-600' :
+                                        'text-red-600'
+                                    }`} />
+                                    <p className={`text-xs ${
+                                        scenario === 'optimistic' ? 'text-green-900' :
+                                        scenario === 'realistic' ? 'text-blue-900' :
+                                        'text-red-900'
+                                    }`}>
+                                        {scenario === 'optimistic' && (
+                                            <>Assumes remaining <strong>{currentStats.remainingWorkingDays} working days</strong> as present. Use slider to project additional absences.</>
+                                        )}
+                                        {scenario === 'realistic' && (
+                                            <>Projects future attendance based on your <strong>current attendance rate</strong>. More accurate than best-case scenario.</>
+                                        )}
+                                        {scenario === 'pessimistic' && (
+                                            <>Assumes <strong>no future attendance</strong>. Only counts days already completed. Worst-case scenario.</>
+                                        )}
                                     </p>
                                 </div>
                             </div>
@@ -246,22 +361,56 @@ export default function SalarySimulatorPage() {
                     </div>
 
                     {/* Calculation Formula */}
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 p-5 rounded-xl">
+                    <div className={`border p-5 rounded-xl ${
+                        scenario === 'optimistic' ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' :
+                        scenario === 'realistic' ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200' :
+                        'bg-gradient-to-r from-red-50 to-pink-50 border-red-200'
+                    }`}>
                         <h4 className="font-semibold text-slate-800 mb-3 text-sm flex items-center gap-2">
-                            <span>📊</span> Estimated Payable Days Formula
+                            <span>📊</span> {
+                                scenario === 'optimistic' ? 'Optimistic' :
+                                scenario === 'realistic' ? 'Realistic' :
+                                'Pessimistic'
+                            } Payable Days Formula
                         </h4>
                         <div className="flex items-center justify-center gap-2 text-lg font-bold flex-wrap">
-                            <span className="text-green-600">{currentStats.presentDays}</span>
-                            <span className="text-slate-400">+</span>
-                            <span className="text-orange-600">{currentStats.lateDays}</span>
-                            <span className="text-slate-400">+</span>
-                            <span className="text-purple-600">{currentStats.approvedLeaveDays}</span>
-                            <span className="text-slate-400">+</span>
-                            <span className="text-blue-600">{currentStats.remainingWorkingDays} <span className="text-xs">(future)</span></span>
-                            <span className="text-slate-400">+</span>
-                            <span className="text-slate-600">{currentStats.totalWeekendsInMonth} <span className="text-xs">(weekends)</span></span>
-                            <span className="text-slate-400">=</span>
-                            <span className="bg-green-600 text-white px-4 py-2 rounded-lg">{currentStats.estimatedPayableDays}</span>
+                            {scenario === 'optimistic' && (
+                                <>
+                                    <span className="text-green-600">{currentStats.presentDays}</span>
+                                    <span className="text-slate-400">+</span>
+                                    <span className="text-orange-600">{currentStats.lateDays}</span>
+                                    <span className="text-slate-400">+</span>
+                                    <span className="text-purple-600">{currentStats.approvedLeaveDays}</span>
+                                    <span className="text-slate-400">+</span>
+                                    <span className="text-blue-600">{currentStats.remainingWorkingDays} <span className="text-xs">(future)</span></span>
+                                    <span className="text-slate-400">+</span>
+                                    <span className="text-slate-600">{currentStats.totalWeekendsInMonth} <span className="text-xs">(weekends)</span></span>
+                                    <span className="text-slate-400">=</span>
+                                    <span className="bg-green-600 text-white px-4 py-2 rounded-lg">{currentStats.estimatedPayableDays}</span>
+                                </>
+                            )}
+                            {scenario === 'realistic' && (
+                                <>
+                                    <span className="text-blue-600">{currentStats.presentDays + currentStats.lateDays}</span>
+                                    <span className="text-slate-400">+</span>
+                                    <span className="text-purple-600">{currentStats.approvedLeaveDays}</span>
+                                    <span className="text-slate-400">+</span>
+                                    <span className="text-indigo-600">~{currentStats.realisticPayableDays - (currentStats.presentDays + currentStats.lateDays + currentStats.approvedLeaveDays)} <span className="text-xs">(projected)</span></span>
+                                    <span className="text-slate-400">=</span>
+                                    <span className="bg-blue-600 text-white px-4 py-2 rounded-lg">{currentStats.realisticPayableDays}</span>
+                                </>
+                            )}
+                            {scenario === 'pessimistic' && (
+                                <>
+                                    <span className="text-red-600">{currentStats.presentDays + currentStats.lateDays}</span>
+                                    <span className="text-slate-400">+</span>
+                                    <span className="text-purple-600">{currentStats.approvedLeaveDays}</span>
+                                    <span className="text-slate-400">+</span>
+                                    <span className="text-slate-600">{currentStats.weekendsSoFar} <span className="text-xs">(weekends)</span></span>
+                                    <span className="text-slate-400">=</span>
+                                    <span className="bg-red-600 text-white px-4 py-2 rounded-lg">{currentStats.pessimisticPayableDays}</span>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -401,7 +550,12 @@ export default function SalarySimulatorPage() {
                         <div className="mt-6 pt-6 border-t border-white/10">
                             <div className="flex items-start gap-3 text-xs text-slate-400">
                                 <AlertCircle className="w-4 h-4 shrink-0 text-blue-400 mt-0.5" />
-                                <p>This simulator uses your actual salary structure and matches the EXACT payroll calculation formula. Counts actual leave DAYS taken, not requests.</p>
+                                <p>
+                                    This simulator uses the <strong>same calculation engine</strong> as payroll generation. 
+                                    Three projection modes available: <strong>Best Case</strong> (perfect attendance), 
+                                    <strong>Realistic</strong> (based on your rate), and <strong>Worst Case</strong> (no future attendance). 
+                                    Slider allows manual adjustments for specific scenarios.
+                                </p>
                             </div>
                         </div>
                     </div>

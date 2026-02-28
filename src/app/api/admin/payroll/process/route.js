@@ -3,6 +3,12 @@ import prisma from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 import { createAuditLog, AuditActions, AuditResources } from '@/lib/audit'
 import { notifyPayrollGenerated } from '@/lib/notifications'
+import { 
+    getDefaultSalaryStructure,
+    calculateWeekends,
+    calculateApprovedLeaveDays,
+    calculateCompletePayroll
+} from '@/lib/payroll-calculator'
 
 export async function POST(request) {
     try {
@@ -67,24 +73,7 @@ export async function POST(request) {
             // Default salary if not defined
             let salary = emp.salary
             if (!salary) {
-                const wage = 50000
-                const basic = wage * 0.5 // 50% Basic
-                const hra = wage * 0.3 // 30% HRA
-                const stdAllowance = wage * 0.1 // 10% Special Allowance
-                const fixedAllowance = wage * 0.1 // 10% Fixed Allowance
-                const pf = basic * 0.12 // 12% of Basic
-                const profTax = 200 // Standard Professional Tax
-                
-                salary = {
-                    wage: wage,
-                    basic: basic,
-                    hra: hra,
-                    stdAllowance: stdAllowance,
-                    fixedAllowance: fixedAllowance,
-                    pf: pf,
-                    profTax: profTax,
-                    netSalary: wage - pf - profTax
-                }
+                salary = getDefaultSalaryStructure()
             }
 
             // 2. Fetch Attendance Count
@@ -99,21 +88,11 @@ export async function POST(request) {
                 }
             })
 
-            // 3. Count Weekends (Saturday & Sunday) starting from effective employment date
-            // Critical Fix: Mid-month joiners should only get weekends AFTER joining
+            // 3. Count Weekends using shared library
             const joiningDate = emp.details?.joiningDate ? new Date(emp.details.joiningDate) : startDate
-            const effectiveStartDate = joiningDate > startDate ? joiningDate : startDate
-            const effectiveStartDay = effectiveStartDate.getDate()
-            
-            let weekends = 0
-            for (let d = effectiveStartDay; d <= daysInMonth; d++) {
-                const date = new Date(year, month, d)
-                const dayOfWeek = date.getDay()
-                // Count both Saturday (6) and Sunday (0) as paid weekends
-                if (dayOfWeek === 0 || dayOfWeek === 6) weekends++
-            }
+            const weekends = calculateWeekends(year, month, daysInMonth, joiningDate, startDate)
 
-            // Count approved leave DAYS (not requests) - calculate actual days in month
+            // Count approved leave DAYS using shared library
             const approvedLeaveRequests = await prisma.leaveRequest.findMany({
                 where: {
                     userId: emp.id,
@@ -127,44 +106,17 @@ export async function POST(request) {
                 }
             })
 
-            // Calculate actual number of leave days in current month
-            let approvedLeaveDays = 0
-            approvedLeaveRequests.forEach(leave => {
-                const leaveStart = new Date(leave.startDate) > startDate ? new Date(leave.startDate) : startDate
-                const leaveEnd = new Date(leave.endDate) < endDate ? new Date(leave.endDate) : endDate
-                
-                // Count days between leaveStart and leaveEnd (inclusive)
-                const daysDiff = Math.floor((leaveEnd - leaveStart) / (1000 * 60 * 60 * 24)) + 1
-                approvedLeaveDays += Math.max(0, daysDiff)
+            const approvedLeaveDays = calculateApprovedLeaveDays(approvedLeaveRequests, startDate, endDate)
+
+            // 4. Calculate Complete Payroll using shared library
+            const payrollCalculation = calculateCompletePayroll({
+                salary,
+                attendanceCount,
+                weekends,
+                approvedLeaveDays,
+                daysInMonth,
+                otherDeductions: 0
             })
-
-            // Critical Fix: Zero-attendance employees should NOT get weekend pay
-            // Business Rule: Weekends only paid when employee has actual attendance or approved leave
-            let payableDays = 0
-            if (attendanceCount === 0 && approvedLeaveDays === 0) {
-                // Full month absent with no approved leave - no payment for weekends
-                payableDays = 0
-            } else {
-                // Normal calculation - include weekends
-                payableDays = Math.min(attendanceCount + weekends + approvedLeaveDays, daysInMonth)
-            }
-
-            // 4. Calculate Payout using Industry Standard Formula
-            // Gross Salary = Basic + HRA + Allowances
-            const grossSalary = salary.basic + salary.hra + salary.stdAllowance + (salary.fixedAllowance || 0) + 
-                               (salary.performanceBonus || 0) + (salary.lta || 0)
-            
-            // Pro-rated calculation based on attendance
-            const perDayGross = grossSalary / daysInMonth
-            const earnedGross = Math.round(perDayGross * payableDays)
-            
-            // Deductions (pro-rated)
-            const perDayPF = salary.pf / daysInMonth
-            const earnedPF = Math.round(perDayPF * payableDays)
-            const earnedProfTax = payableDays >= 20 ? salary.profTax : 0 // Professional tax only if >= 20 days
-            
-            const totalDeductions = earnedPF + earnedProfTax
-            const netPay = earnedGross - totalDeductions
 
             // Delete old record for this month
             await prisma.payroll.deleteMany({
@@ -177,27 +129,8 @@ export async function POST(request) {
                     month: parseInt(month),
                     year: parseInt(year),
                     
-                    // Detailed Breakdown (NEW - for auditability)
-                    daysInMonth: daysInMonth,
-                    attendanceDays: attendanceCount,
-                    weekendDays: weekends,
-                    leaveDays: approvedLeaveDays,
-                    payableDays: payableDays,
-                    
-                    // Earnings Breakdown
-                    grossSalary: grossSalary,
-                    earnedGross: earnedGross,
-                    
-                    // Deductions Breakdown
-                    pfDeduction: earnedPF,
-                    profTaxDeduction: earnedProfTax,
-                    otherDeductions: 0,
-                    
-                    // Legacy fields (kept for compatibility)
-                    baseWage: salary.wage,
-                    totalEarnings: earnedGross,
-                    totalDeductions: totalDeductions,
-                    netPay: netPay,
+                    // Use calculated breakdown from shared library
+                    ...payrollCalculation,
                     
                     status: 'GENERATED'
                 }
@@ -207,15 +140,13 @@ export async function POST(request) {
             const monthName = new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
             await notifyPayrollGenerated(emp.id, {
                 month: monthName,
-                netPay: netPay
+                netPay: payrollCalculation.netPay
             })
 
             payrolls.push({
                 ...newPayroll,
                 name: emp.details?.firstName + ' ' + emp.details?.lastName,
-                employeeId: emp.employeeId,
-                payableDays,
-                daysInMonth
+                employeeId: emp.employeeId
             })
         }
         
