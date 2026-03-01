@@ -123,14 +123,17 @@ export async function POST(request) {
                 where: { userId: emp.id, month: parseInt(month), year: parseInt(year) }
             })
 
+            // Destructure and exclude lossOfPay (derived value, not stored in DB)
+            const { lossOfPay, ...payrollData } = payrollCalculation
+
             const newPayroll = await prisma.payroll.create({
                 data: {
                     userId: emp.id,
                     month: parseInt(month),
                     year: parseInt(year),
                     
-                    // Use calculated breakdown from shared library
-                    ...payrollCalculation,
+                    // Use calculated breakdown from shared library (exclude lossOfPay)
+                    ...payrollData,
                     
                     status: 'GENERATED'
                 }
